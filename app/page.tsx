@@ -324,7 +324,7 @@ export default function Home() {
     const wideSectionWidth = width - wideSectionX - (margin + 4);
     const tableY = metricsY + metricsHeight + 6;
     const rowHeight = Math.max(22, Math.min(60, 500 / Math.max(timedSplits.length, 1)));
-    const tableTitleHeight = 80;
+    const tableTitleHeight = 72;
     const tableBottomPadding = 14;
     const headerTop = tableY + tableTitleHeight;
     const headerHeight = 46;
@@ -388,8 +388,9 @@ export default function Home() {
     ctx.fillText('Темп по дистанции', wideSectionX, graphY + 26);
     ctx.textBaseline = 'alphabetic';
 
-    const legendY = graphY + 41;
-    const legendX = width - wideSectionX - 310;
+    const graphRight = wideSectionX + wideSectionWidth - 12;
+    const legendY = graphY + 39;
+    const legendX = graphRight - 310;
     ctx.fillStyle = '#e20921';
     ctx.beginPath();
     ctx.arc(legendX, legendY, 6, 0, Math.PI * 2);
@@ -411,7 +412,7 @@ export default function Home() {
 
     if (parsed.length) {
       const graphTitleX = wideSectionX;
-      const graph = { left: wideSectionX + 52, top: graphY + 96, right: wideSectionX + wideSectionWidth - 12, bottom: graphY + graphHeight - 56 };
+      const graph = { left: wideSectionX + 52, top: graphY + 96, right: graphRight, bottom: graphY + graphHeight - 56 };
       const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
