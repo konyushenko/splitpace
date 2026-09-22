@@ -282,11 +282,11 @@ export default function Home() {
     ctx.fillText(runnerName, margin, 112);
 
     const metricWidth = contentWidth / 3;
-    const logoY = 64;
+    const logoY = 44;
     const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
     if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
 
-    const metricsY = Math.max(146, logoY + logoHeight + 36);
+    const metricsY = Math.max(146, 64 + logoHeight + 36);
     const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
@@ -296,7 +296,7 @@ export default function Home() {
     ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
-      ctx.fillStyle = index === 1 ? '#fdecee' : '#ffffff';
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
       else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
@@ -308,6 +308,15 @@ export default function Home() {
       ctx.fillStyle = '#171813';
       ctx.font = '700 27px Manrope, Arial';
       ctx.fillText(value, x + 24, metricsY + 52);
+    });
+    ctx.strokeStyle = 'rgba(23,24,19,.12)';
+    ctx.lineWidth = 1;
+    [1, 2].forEach((index) => {
+      const separatorX = margin + metricWidth * index;
+      ctx.beginPath();
+      ctx.moveTo(separatorX, metricsY + 20);
+      ctx.lineTo(separatorX, metricsY + metricsHeight - 20);
+      ctx.stroke();
     });
     ctx.textBaseline = 'alphabetic';
 
@@ -333,10 +342,10 @@ export default function Home() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
     ctx.fillStyle = 'rgba(23,24,19,.72)';
-    ctx.font = '700 14px Manrope, Arial';
+    ctx.font = '700 16px Manrope, Arial';
     headers.forEach((header, index) => ctx.fillText(header, columns[index], headerTop + 29));
 
-    const rowFont = Math.max(12, Math.min(17, rowHeight * 0.42));
+    const rowFont = Math.max(14, Math.min(19, rowHeight * 0.46));
     timedSplits.forEach((split, index) => {
       const y = headerTop + headerHeight + rowHeight * index;
       if (index > 0) {
@@ -375,7 +384,7 @@ export default function Home() {
     ctx.arc(legendX, legendY, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(23,24,19,.62)';
-    ctx.font = '600 13px Manrope, Arial';
+    ctx.font = '600 15px Manrope, Arial';
     ctx.textBaseline = 'middle';
     ctx.fillText('Темп', legendX + 13, legendY);
     ctx.setLineDash([5, 5]);
@@ -409,7 +418,7 @@ export default function Home() {
         ctx.lineTo(graph.right, y(tick));
         ctx.stroke();
         ctx.fillStyle = 'rgba(23,24,19,.5)';
-        ctx.font = '500 13px Manrope, Arial';
+        ctx.font = '500 15px Manrope, Arial';
         ctx.textAlign = 'left';
         ctx.fillText(formatPace(tick), graphTitleX, y(tick) + 4);
       }
@@ -442,7 +451,7 @@ export default function Home() {
         ctx.stroke();
         if (Math.abs(item.distance - 21.1) < 0.001) return;
         const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
-        ctx.font = `500 ${graphData.length > 10 ? 10 : 12}px Manrope, Arial`;
+        ctx.font = `500 ${graphData.length > 10 ? 12 : 14}px Manrope, Arial`;
         const labelWidth = ctx.measureText(distanceLabel).width;
         const labelLeft = x(item.distance) - labelWidth / 2;
         const firstFreeRow = labelRightEdges.findIndex((rightEdge) => labelLeft > rightEdge + 5);
@@ -450,7 +459,7 @@ export default function Home() {
         labelRightEdges[labelRow] = x(item.distance) + labelWidth / 2;
         ctx.fillStyle = 'rgba(23,24,19,.5)';
         ctx.textAlign = 'center';
-        ctx.fillText(distanceLabel, x(item.distance), graph.bottom + 23 + labelRow * 15);
+        ctx.fillText(distanceLabel, x(item.distance), graph.bottom + 24 + labelRow * 18);
       });
       ctx.textAlign = 'left';
     }
