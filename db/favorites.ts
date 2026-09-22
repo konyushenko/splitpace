@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 
 import { favoritesCreatedAtIndexSql, favoritesTableSql } from './schema';
 
-type Split = { id: number; km: string; pace: string };
+type Split = { id: number; km: string; time: string; pace: string };
 
 type FavoriteRow = {
   id: string;

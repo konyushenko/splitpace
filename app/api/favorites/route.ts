@@ -1,12 +1,15 @@
 import { createFavorite, listFavorites, updateFavorite } from '@/db/favorites';
 
-type Split = { id: number; km: string; pace: string };
+type Split = { id: number; km: string; time: string; pace: string };
 
 function validSplits(value: unknown): value is Split[] {
   return Array.isArray(value) && value.length <= 100 && value.every((split) => {
     if (!split || typeof split !== 'object') return false;
     const candidate = split as Record<string, unknown>;
-    return typeof candidate.id === 'number' && typeof candidate.km === 'string' && typeof candidate.pace === 'string';
+    return typeof candidate.id === 'number'
+      && typeof candidate.km === 'string'
+      && typeof candidate.time === 'string'
+      && typeof candidate.pace === 'string';
   });
 }
 

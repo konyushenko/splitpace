@@ -5,16 +5,16 @@ import { Check, ChevronDown, ChevronUp, Download, Pencil, Plus, RotateCcw, Star,
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-type Split = { id: number; km: string; pace: string };
+type Split = { id: number; km: string; time: string; pace: string };
 type FavoriteSet = { id: string; name: string; splits: Split[] };
 
 const initialSplits: Split[] = [
-  { id: 1, km: '1', pace: '04:38' },
-  { id: 2, km: '5', pace: '04:31' },
-  { id: 3, km: '10', pace: '04:44' },
-  { id: 4, km: '15', pace: '05:06' },
-  { id: 5, km: '20', pace: '04:49' },
-  { id: 6, km: '21.1', pace: '04:47' },
+  { id: 1, km: '1', time: '04:38', pace: '04:38' },
+  { id: 2, km: '5', time: '22:42', pace: '04:31' },
+  { id: 3, km: '10', time: '46:22', pace: '04:44' },
+  { id: 4, km: '15', time: '1:11:52', pace: '05:06' },
+  { id: 5, km: '20', time: '1:35:57', pace: '04:49' },
+  { id: 6, km: '21.1', time: '1:41:13', pace: '04:47' },
 ];
 
 function paceToSeconds(value: string) {
@@ -52,6 +52,19 @@ function formatElapsed(seconds: number) {
   const secs = rounded % 60;
   if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function addCalculatedPointTimes(splits: Array<Omit<Split, 'time'> & { time?: string }>): Split[] {
+  let previousDistance = 0;
+  let cumulativeSeconds = 0;
+  return splits.map((split) => {
+    const distance = Number(split.km.replace(',', '.'));
+    const paceSeconds = paceToSeconds(split.pace);
+    const segmentDistance = Number.isFinite(distance) ? Math.max(0, distance - previousDistance) : 0;
+    cumulativeSeconds += segmentDistance * paceSeconds;
+    if (Number.isFinite(distance) && distance > 0) previousDistance = distance;
+    return { ...split, time: split.time?.trim() || formatElapsed(cumulativeSeconds) };
+  });
 }
 
 type ChartPoint = { x: number; y: number };
@@ -94,7 +107,7 @@ function traceSmoothCanvas(ctx: CanvasRenderingContext2D, points: ChartPoint[]) 
 }
 
 export default function Home() {
-  const [runnerName, setRunnerName] = useState('Алексей Воронов');
+  const [runnerName, setRunnerName] = useState('Валерия Димитрова');
   const [draftName, setDraftName] = useState(runnerName);
   const [editingName, setEditingName] = useState(false);
   const [splits, setSplits] = useState<Split[]>(initialSplits);
@@ -110,7 +123,9 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/favorites')
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { favorites: FavoriteSet[] }) => setFavorites(data.favorites))
+      .then((data: { favorites: Array<Omit<FavoriteSet, 'splits'> & { splits: Array<Omit<Split, 'time'> & { time?: string }> }> }) => {
+        setFavorites(data.favorites.map((favorite) => ({ ...favorite, splits: addCalculatedPointTimes(favorite.splits) })));
+      })
       .catch(() => setFavorites([]))
       .finally(() => setFavoritesReady(true));
   }, []);
@@ -138,12 +153,17 @@ export default function Home() {
 
   const timedSplits = useMemo(() => {
     let previousDistance = 0;
-    let cumulativeSeconds = 0;
+    let previousPointSeconds = 0;
     return parsed.map((split) => {
       const segmentDistance = Math.max(0, split.distance - previousDistance);
-      const segmentSeconds = segmentDistance * split.paceSeconds;
-      cumulativeSeconds += segmentSeconds;
+      const calculatedSegmentSeconds = segmentDistance * split.paceSeconds;
+      const enteredPointSeconds = durationToSeconds(split.time);
+      const cumulativeSeconds = enteredPointSeconds > previousPointSeconds
+        ? enteredPointSeconds
+        : previousPointSeconds + calculatedSegmentSeconds;
+      const segmentSeconds = cumulativeSeconds - previousPointSeconds;
       previousDistance = split.distance;
+      previousPointSeconds = cumulativeSeconds;
       return { ...split, segmentSeconds, cumulativeSeconds };
     });
   }, [parsed]);
@@ -157,16 +177,21 @@ export default function Home() {
     return { distance, totalSeconds, average, fastest };
   }, [manualTotal, parsed, timedSplits]);
 
-  const updateSplit = (id: number, key: 'km' | 'pace', value: string) => {
+  const updateSplit = (id: number, key: 'km' | 'time' | 'pace', value: string) => {
     setSplits((current) => current.map((split) => split.id === id ? { ...split, [key]: value } : split));
   };
 
   const addSplit = () => {
     const last = parsed.at(-1);
+    const lastTimed = timedSplits.at(-1);
+    const nextDistance = last ? Math.round((last.distance + 1) * 10) / 10 : 1;
+    const nextPace = last ? formatPace(last.paceSeconds) : '05:00';
+    const nextPointSeconds = (lastTimed?.cumulativeSeconds ?? 0) + Math.max(0, nextDistance - (last?.distance ?? 0)) * paceToSeconds(nextPace);
     setSplits((current) => [...current, {
       id: Date.now(),
-      km: last ? String(Math.round((last.distance + 1) * 10) / 10) : '1',
-      pace: last ? formatPace(last.paceSeconds) : '05:00',
+      km: String(nextDistance),
+      time: formatElapsed(nextPointSeconds),
+      pace: nextPace,
     }]);
   };
 
@@ -215,7 +240,7 @@ export default function Home() {
     const favorite = favorites.find((item) => item.id === id);
     setActiveFavoriteId(id || null);
     if (!favorite) return;
-    setSplits(favorite.splits.map((split) => ({ ...split })));
+    setSplits(addCalculatedPointTimes(favorite.splits));
     setManualTotal(null);
   };
 
@@ -327,6 +352,27 @@ export default function Home() {
     ctx.font = '800 26px Manrope, Arial';
     ctx.textBaseline = 'top';
     ctx.fillText('Темп по дистанции', margin + 26, graphY + 26);
+    ctx.textBaseline = 'alphabetic';
+
+    const legendY = graphY + 41;
+    const legendX = width - margin - 310;
+    ctx.fillStyle = '#e20921';
+    ctx.beginPath();
+    ctx.arc(legendX, legendY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(23,24,19,.62)';
+    ctx.font = '600 13px Manrope, Arial';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Темп', legendX + 13, legendY);
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = 'rgba(23,24,19,.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(legendX + 88, legendY);
+    ctx.lineTo(legendX + 118, legendY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText('Средний темп', legendX + 128, legendY);
     ctx.textBaseline = 'alphabetic';
 
     if (parsed.length) {
@@ -441,7 +487,7 @@ export default function Home() {
           <div className="flex items-center gap-3 text-sm text-black/55"><span className="size-2 rounded-full bg-[#68a176]" /> Данные обновляются сразу</div>
         </section>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
+        <div className="grid items-start gap-5 xl:grid-cols-[500px_minmax(0,1fr)]">
           <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6" aria-labelledby="splits-heading">
             <div className="mb-5 flex items-start justify-between">
               <div><h2 id="splits-heading" className="text-xl font-bold tracking-tight">Сплиты</h2><p className="mt-1 text-sm text-black/45">Дистанция и темп на участке</p></div>
@@ -466,14 +512,15 @@ export default function Home() {
               </div>
               {activeFavoriteId && <p className="mt-2 text-xs text-black/45">Изменения темпа сохраняются в выбранный набор автоматически.</p>}
             </div>
-            <div className="mb-2 grid grid-cols-[1fr_1.1fr_58px] gap-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-black/35"><span>Километр</span><span>Темп /км</span><span /></div>
+            <div className="mb-2 grid grid-cols-[1fr_1.15fr_1.05fr_58px] gap-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-black/35"><span>Километр</span><span>Время на точке</span><span>Темп /км</span><span /></div>
             <div className="space-y-2">
               {splits.map((split, index) => (
-                <div key={split.id} className="group grid grid-cols-[1fr_1.1fr_58px] items-center gap-2 rounded-xl bg-[#f4f4f0] p-2 transition focus-within:bg-[#efefe9]">
+                <div key={split.id} className="group grid grid-cols-[1fr_1.15fr_1.05fr_58px] items-center gap-2 rounded-xl bg-[#f4f4f0] p-2 transition focus-within:bg-[#efefe9]">
                   <label className="flex items-center gap-1.5">
                     <span className="w-5 text-center text-xs font-semibold text-black/30">{index + 1}</span>
                     <Input inputMode="decimal" value={split.km} onChange={(event) => updateSplit(split.id, 'km', event.target.value)} className="h-9 rounded-lg border-0 bg-white px-2.5 font-semibold shadow-none focus-visible:ring-2" aria-label={`Дистанция сплита ${index + 1} в километрах`} />
                   </label>
+                  <Input value={split.time} onChange={(event) => updateSplit(split.id, 'time', event.target.value)} placeholder="00:00" className="h-9 rounded-lg border-0 bg-white px-2.5 font-semibold shadow-none focus-visible:ring-2" aria-label={`Время на точке сплита ${index + 1}`} />
                   <Input value={split.pace} onChange={(event) => updateSplit(split.id, 'pace', event.target.value)} placeholder="05:00" className="h-9 rounded-lg border-0 bg-white px-2.5 font-semibold shadow-none focus-visible:ring-2" aria-label={`Темп сплита ${index + 1}`} />
                   <div className="flex items-center justify-end gap-0.5">
                     <div className="flex flex-col">
@@ -489,7 +536,7 @@ export default function Home() {
           </section>
 
           <div className="min-w-0 space-y-5 xl:self-start">
-            <section className="grid overflow-hidden rounded-[22px] border border-black/10 bg-[#171813] text-white sm:grid-cols-3" aria-label="Итоговые показатели">
+            <section className="grid overflow-hidden rounded-[22px] border border-black/10 bg-white text-[#171813] sm:grid-cols-3" aria-label="Итоговые показатели">
               <TotalMetric
                 value={formatDuration(summary.totalSeconds)}
                 adjusted={Boolean(manualTotal)}
@@ -550,27 +597,27 @@ export default function Home() {
 }
 
 function Metric({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
-  return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#e20921]' : 'border-white/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-white/50">{detail}</p></div>;
+  return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#fdecee]' : 'border-black/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-black/45">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-black/45">{detail}</p></div>;
 }
 
 function TotalMetric({ value, adjusted, editing, draft, onDraftChange, onEdit, onSave, onReset }: { value: string; adjusted: boolean; editing: boolean; draft: string; onDraftChange: (value: string) => void; onEdit: () => void; onSave: () => void; onReset: () => void }) {
   return (
-    <div className="min-w-0 border-white/10 p-5 sm:border-r sm:p-7">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">Общее время</p>
+    <div className="min-w-0 border-black/10 p-5 sm:border-r sm:p-7">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-black/45">Общее время</p>
       {editing ? (
         <div className="mt-3 flex items-center gap-2">
-          <Input autoFocus value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && onSave()} className="h-10 min-w-0 rounded-lg border-white/20 bg-white/10 px-2 text-xl font-semibold text-white shadow-none focus-visible:border-white/50 focus-visible:ring-white/20" aria-label="Общее время в формате часы минуты секунды" />
-          <button onClick={onSave} className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-[#171813]" aria-label="Сохранить общее время"><Check className="size-4" /></button>
+          <Input autoFocus value={draft} onChange={(event) => onDraftChange(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && onSave()} className="h-10 min-w-0 rounded-lg border-black/15 bg-black/[0.04] px-2 text-xl font-semibold text-[#171813] shadow-none focus-visible:border-black/35 focus-visible:ring-black/10" aria-label="Общее время в формате часы минуты секунды" />
+          <button onClick={onSave} className="grid size-9 shrink-0 place-items-center rounded-full bg-[#171813] text-white" aria-label="Сохранить общее время"><Check className="size-4" /></button>
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-2">
           <p className="truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p>
-          <button onClick={onEdit} className="grid size-8 shrink-0 place-items-center rounded-full border border-white/20 text-white/60 transition hover:bg-white/10 hover:text-white" aria-label="Редактировать общее время"><Pencil className="size-3.5" /></button>
+          <button onClick={onEdit} className="grid size-8 shrink-0 place-items-center rounded-full border border-black/15 text-black/50 transition hover:bg-black/[0.04] hover:text-black" aria-label="Редактировать общее время"><Pencil className="size-3.5" /></button>
         </div>
       )}
-      <div className="mt-2 flex items-center gap-2 text-xs text-white/50">
+      <div className="mt-2 flex items-center gap-2 text-xs text-black/45">
         <span>{adjusted ? 'скорректировано вручную' : 'расчёт по сплитам'}</span>
-        {adjusted && <button onClick={onReset} className="underline decoration-white/30 underline-offset-2 transition hover:text-white" aria-label="Вернуть расчётное общее время">Сбросить</button>}
+        {adjusted && <button onClick={onReset} className="underline decoration-black/25 underline-offset-2 transition hover:text-black" aria-label="Вернуть расчётное общее время">Сбросить</button>}
       </div>
     </div>
   );
