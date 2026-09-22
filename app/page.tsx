@@ -116,6 +116,24 @@ function loadCanvasImage(src: string) {
   });
 }
 
+function wrapCanvasWords(ctx: CanvasRenderingContext2D, value: string, maxWidth: number) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+  const lines: string[] = [];
+  let currentLine = '';
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (!currentLine || ctx.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 export default function Home() {
   const [runnerName, setRunnerName] = useState('Валерия Димитрова');
   const [draftName, setDraftName] = useState(runnerName);
@@ -286,20 +304,28 @@ export default function Home() {
     ctx.fillStyle = '#171813';
     ctx.textAlign = 'left';
 
+    const metricWidth = contentWidth / 3;
+    const nameMaxWidth = contentWidth - metricWidth - 32;
     let nameSize = 52;
+    let nameLines: string[] = [];
     do {
       ctx.font = `800 ${nameSize}px Manrope, Arial`;
-      if (ctx.measureText(runnerName).width <= contentWidth) break;
+      nameLines = wrapCanvasWords(ctx, runnerName, nameMaxWidth);
+      if (nameLines.length <= 2 && nameLines.every((line) => ctx.measureText(line).width <= nameMaxWidth)) break;
       nameSize -= 2;
-    } while (nameSize > 30);
-    ctx.fillText(runnerName, margin, 112);
+    } while (nameSize > 24);
+    const nameLineHeight = Math.round(nameSize * 1.08);
+    const firstNameBaseline = nameLines.length > 1 ? 96 : 112;
+    nameLines.slice(0, 2).forEach((line, index) => {
+      ctx.fillText(line, margin, firstNameBaseline + nameLineHeight * index);
+    });
+    const lastNameBaseline = firstNameBaseline + nameLineHeight * (Math.min(nameLines.length, 2) - 1);
 
-    const metricWidth = contentWidth / 3;
     const logoY = 54;
     const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
     if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
 
-    const metricsY = Math.max(146, logoY + logoHeight + 46);
+    const metricsY = Math.max(146, logoY + logoHeight + 46, lastNameBaseline + 42);
     const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
@@ -554,8 +580,8 @@ export default function Home() {
                 <Button onClick={saveName} size="icon" className="size-11 rounded-full bg-[#171813]"><Check /></Button>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <h1 className="text-4xl font-bold tracking-[-0.045em] sm:text-6xl">{runnerName}</h1>
+              <div className="flex min-w-0 max-w-full items-start gap-3">
+                <h1 className="min-w-0 max-w-[900px] break-words text-4xl font-bold tracking-[-0.045em] sm:text-6xl">{runnerName}</h1>
                 <button onClick={() => { setDraftName(runnerName); setEditingName(true); }} className="grid size-10 shrink-0 place-items-center rounded-full border border-black/15 text-black/55 transition hover:border-black hover:bg-white hover:text-black" aria-label="Редактировать имя">
                   <Pencil className="size-4" />
                 </button>
