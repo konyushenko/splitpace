@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Download, Pencil, Plus, RotateCcw, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 type Split = { id: number; km: string; pace: string };
+type FavoriteSet = { id: string; name: string; splits: Split[] };
 
 const initialSplits: Split[] = [
   { id: 1, km: '1', pace: '04:38' },
@@ -61,6 +62,34 @@ export default function Home() {
   const [manualTotal, setManualTotal] = useState<string | null>(null);
   const [draftTotal, setDraftTotal] = useState('');
   const [editingTotal, setEditingTotal] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteSet[]>([]);
+  const [activeFavoriteId, setActiveFavoriteId] = useState<string | null>(null);
+  const [favoriteName, setFavoriteName] = useState('');
+  const [favoritesReady, setFavoritesReady] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/favorites')
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { favorites: FavoriteSet[] }) => setFavorites(data.favorites))
+      .catch(() => setFavorites([]))
+      .finally(() => setFavoritesReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!activeFavoriteId || !favoritesReady) return;
+    const timer = window.setTimeout(async () => {
+      const active = favorites.find((favorite) => favorite.id === activeFavoriteId);
+      if (!active) return;
+      await fetch('/api/favorites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: activeFavoriteId, name: active.name, splits }),
+      });
+      setFavorites((current) => current.map((favorite) => favorite.id === activeFavoriteId ? { ...favorite, splits } : favorite));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [activeFavoriteId, favoritesReady, splits]);
 
   const parsed = useMemo(() => splits.map((split) => ({
     ...split,
@@ -123,15 +152,214 @@ export default function Home() {
     setEditingTotal(false);
   };
 
-  const exportSplits = () => {
-    const rows = [['Бегун', runnerName], ['Километр', 'Темп мин/км'], ...parsed.map((split) => [String(split.distance), formatPace(split.paceSeconds)])];
-    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(';')).join('\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${runnerName.toLowerCase().replaceAll(' ', '-')}-splits.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const saveFavorite = async () => {
+    if (!splits.length) return;
+    setSavingFavorite(true);
+    const name = favoriteName.trim() || `Набор ${favorites.length + 1}`;
+    try {
+      const response = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, splits }),
+      });
+      if (!response.ok) return;
+      const data = await response.json() as { favorite: FavoriteSet };
+      setFavorites((current) => [...current, data.favorite]);
+      setActiveFavoriteId(data.favorite.id);
+      setFavoriteName('');
+    } finally {
+      setSavingFavorite(false);
+    }
+  };
+
+  const loadFavorite = (id: string) => {
+    const favorite = favorites.find((item) => item.id === id);
+    setActiveFavoriteId(id || null);
+    if (!favorite) return;
+    setSplits(favorite.splits.map((split) => ({ ...split })));
+    setManualTotal(null);
+  };
+
+  const exportPng = async () => {
+    await document.fonts.ready;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1350;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const margin = 64;
+    const contentWidth = width - margin * 2;
+    ctx.fillStyle = '#f3f3ef';
+    ctx.fillRect(0, 0, width, height);
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = '#ff5a36';
+    ctx.beginPath();
+    ctx.arc(margin + 18, 64, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 13px Manrope, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('SP', margin + 18, 69);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#171813';
+    ctx.font = '700 18px Manrope, Arial';
+    ctx.fillText('SPLITPACE', margin + 48, 70);
+
+    let nameSize = 52;
+    do {
+      ctx.font = `800 ${nameSize}px Manrope, Arial`;
+      if (ctx.measureText(runnerName).width <= contentWidth) break;
+      nameSize -= 2;
+    } while (nameSize > 30);
+    ctx.fillText(runnerName, margin, 155);
+
+    const metricsY = 205;
+    const metricsHeight = 154;
+    const metricWidth = contentWidth / 3;
+    const metrics = [
+      ['Общее время', formatDuration(summary.totalSeconds)],
+      ['Средний темп', `${formatPace(summary.average)} /км`],
+      ['Дистанция', `${summary.distance.toLocaleString('ru-RU')} км`],
+    ];
+    metrics.forEach(([label, value], index) => {
+      const x = margin + metricWidth * index;
+      ctx.fillStyle = index === 1 ? '#ff5a36' : '#171813';
+      ctx.beginPath();
+      if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
+      else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
+      else ctx.rect(x, metricsY, metricWidth, metricsHeight);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.6)';
+      ctx.font = '700 15px Manrope, Arial';
+      ctx.fillText(label, x + 26, metricsY + 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 32px Manrope, Arial';
+      ctx.fillText(value, x + 26, metricsY + 98);
+    });
+
+    const tableY = 395;
+    const rowHeight = Math.max(20, Math.min(44, 360 / Math.max(timedSplits.length, 1)));
+    const headerTop = tableY + 62;
+    const headerHeight = 46;
+    const tableHeight = 62 + headerHeight + timedSplits.length * rowHeight;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(margin, tableY, contentWidth, tableHeight, 22);
+    ctx.fill();
+    ctx.fillStyle = '#171813';
+    ctx.font = '800 26px Manrope, Arial';
+    ctx.fillText('Время на точках', margin + 26, tableY + 39);
+
+    const columns = [margin + 26, margin + 350, margin + 550, margin + 750];
+    const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
+    ctx.fillStyle = '#f3f3ef';
+    ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
+    ctx.fillStyle = 'rgba(23,24,19,.55)';
+    ctx.font = '700 14px Manrope, Arial';
+    headers.forEach((header, index) => ctx.fillText(header, columns[index], headerTop + 29));
+
+    const rowFont = Math.max(12, Math.min(17, rowHeight * 0.42));
+    timedSplits.forEach((split, index) => {
+      const y = headerTop + headerHeight + rowHeight * index;
+      if (index > 0) {
+        ctx.strokeStyle = 'rgba(23,24,19,.09)';
+        ctx.beginPath();
+        ctx.moveTo(margin + 24, y);
+        ctx.lineTo(width - margin - 24, y);
+        ctx.stroke();
+      }
+      ctx.font = `600 ${rowFont}px Manrope, Arial`;
+      ctx.fillStyle = '#171813';
+      ctx.fillText(`${split.distance.toLocaleString('ru-RU')} км`, columns[0], y + rowHeight * 0.68);
+      ctx.fillStyle = 'rgba(23,24,19,.65)';
+      ctx.fillText(formatElapsed(split.cumulativeSeconds), columns[1], y + rowHeight * 0.68);
+      ctx.fillText(formatElapsed(split.segmentSeconds), columns[2], y + rowHeight * 0.68);
+      ctx.fillStyle = '#171813';
+      ctx.fillText(`${formatPace(split.paceSeconds)} /км`, columns[3], y + rowHeight * 0.68);
+    });
+
+    const graphY = tableY + tableHeight + 34;
+    const graphHeight = Math.max(170, height - graphY - 58);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(margin, graphY, contentWidth, graphHeight, 22);
+    ctx.fill();
+    ctx.fillStyle = '#171813';
+    ctx.font = '800 26px Manrope, Arial';
+    ctx.fillText('Темп по дистанции', margin + 26, graphY + 42);
+
+    if (parsed.length) {
+      const graph = { left: margin + 86, top: graphY + 72, right: width - margin - 28, bottom: graphY + graphHeight - 48 };
+      const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
+      const paces = graphData.map((item) => item.paceSeconds);
+      const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
+      const maxPace = Math.ceil((Math.max(...paces, summary.average) + 15) / 10) * 10;
+      const maxDistance = Math.max(...parsed.map((item) => item.distance));
+      const x = (distance: number) => graph.left + (distance / maxDistance) * (graph.right - graph.left);
+      const y = (pace: number) => graph.top + ((pace - minPace) / Math.max(1, maxPace - minPace)) * (graph.bottom - graph.top);
+
+      for (let index = 0; index < 5; index += 1) {
+        const tick = minPace + ((maxPace - minPace) / 4) * index;
+        ctx.strokeStyle = 'rgba(23,24,19,.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(graph.left, y(tick));
+        ctx.lineTo(graph.right, y(tick));
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(23,24,19,.5)';
+        ctx.font = '500 13px Manrope, Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(formatPace(tick), graph.left - 12, y(tick) + 4);
+      }
+
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = 'rgba(23,24,19,.5)';
+      ctx.beginPath();
+      ctx.moveTo(graph.left, y(summary.average));
+      ctx.lineTo(graph.right, y(summary.average));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.strokeStyle = '#ff5a36';
+      ctx.lineWidth = 5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      graphData.forEach((item, index) => index === 0 ? ctx.moveTo(x(item.distance), y(item.paceSeconds)) : ctx.lineTo(x(item.distance), y(item.paceSeconds)));
+      ctx.stroke();
+
+      const labelEvery = Math.max(1, Math.ceil(graphData.length / 7));
+      graphData.forEach((item, index) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#ff5a36';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (index % labelEvery === 0 || index === graphData.length - 1) {
+          ctx.fillStyle = 'rgba(23,24,19,.5)';
+          ctx.font = '500 13px Manrope, Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${item.distance} км`, x(item.distance), graph.bottom + 27);
+        }
+      });
+      ctx.textAlign = 'left';
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${runnerName.toLowerCase().replaceAll(' ', '-')}-splitpace.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
   };
 
   return (
@@ -143,8 +371,8 @@ export default function Home() {
             <span className="grid size-7 place-items-center rounded-full bg-[#ff5a36] text-[10px] font-black text-white">SP</span>
             SPLITPACE
           </div>
-          <Button onClick={exportSplits} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
-            <Download /> <span className="hidden sm:inline">Экспорт</span>
+          <Button onClick={exportPng} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
+            <Download /> <span className="hidden sm:inline">PNG 4:5</span>
           </Button>
         </div>
       </header>
@@ -174,6 +402,25 @@ export default function Home() {
             <div className="mb-5 flex items-start justify-between">
               <div><h2 id="splits-heading" className="text-xl font-bold tracking-tight">Сплиты</h2><p className="mt-1 text-sm text-black/45">Дистанция и темп на участке</p></div>
               <Button variant="ghost" size="icon-sm" onClick={() => { setSplits(initialSplits); setManualTotal(null); }} className="rounded-full text-black/45 hover:text-black" aria-label="Вернуть исходные значения"><RotateCcw /></Button>
+            </div>
+            <div className="mb-5 rounded-xl bg-[#fff1ec] p-3.5">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Star className="size-4 fill-[#ff5a36] text-[#ff5a36]" /> Избранное</div>
+              {favorites.length > 0 && (
+                <select
+                  value={activeFavoriteId ?? ''}
+                  onChange={(event) => loadFavorite(event.target.value)}
+                  className="mb-2 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-medium outline-none transition focus:border-[#ff5a36]"
+                  aria-label="Выбрать сохранённый набор сплитов"
+                >
+                  <option value="">Выберите сохранённый набор</option>
+                  {favorites.map((favorite) => <option key={favorite.id} value={favorite.id}>{favorite.name} · {favorite.splits.length}</option>)}
+                </select>
+              )}
+              <div className="flex gap-2">
+                <Input value={favoriteName} onChange={(event) => setFavoriteName(event.target.value)} placeholder="Название набора" className="h-10 border-0 bg-white shadow-none focus-visible:ring-2" aria-label="Название нового избранного набора" />
+                <Button onClick={saveFavorite} disabled={savingFavorite || !favoritesReady} className="h-10 shrink-0 rounded-lg bg-[#171813] px-3"><Star /> {savingFavorite ? 'Сохраняю' : 'Сохранить'}</Button>
+              </div>
+              {activeFavoriteId && <p className="mt-2 text-xs text-black/45">Изменения темпа сохраняются в выбранный набор автоматически.</p>}
             </div>
             <div className="mb-2 grid grid-cols-[1fr_1.1fr_58px] gap-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-black/35"><span>Километр</span><span>Темп /км</span><span /></div>
             <div className="space-y-2">
@@ -214,12 +461,8 @@ export default function Home() {
             </section>
 
             <section className="overflow-hidden rounded-[22px] border border-black/10 bg-white" aria-labelledby="timing-heading">
-              <div className="flex items-center justify-between border-b border-black/10 px-5 py-5 sm:px-7">
-                <div>
-                  <h2 id="timing-heading" className="text-xl font-bold tracking-tight sm:text-2xl">Временные сплиты</h2>
-                  <p className="mt-1 text-sm text-black/45">Накопленное время и результат каждого участка</p>
-                </div>
-                <span className="rounded-full bg-[#f3f3ef] px-3 py-1.5 text-xs font-semibold text-black/50">{timedSplits.length}</span>
+              <div className="border-b border-black/10 px-5 py-5 sm:px-7">
+                <h2 id="timing-heading" className="text-xl font-bold tracking-tight sm:text-2xl">Время на точках</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[660px] border-collapse text-left">
