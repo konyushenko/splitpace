@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+  --font-heading: var(--font-manrope);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  --background: oklch(0.965 0.009 100);
+  --foreground: oklch(0.19 0.015 105);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.015 105);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.015 105);
+  --primary: oklch(0.19 0.015 105);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.01 100);
+  --secondary-foreground: oklch(0.19 0.015 105);
+  --muted: oklch(0.94 0.01 100);
+  --muted-foreground: oklch(0.48 0.015 105);
+  --accent: oklch(0.7 0.19 36);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.58 0.22 28);
+  --border: oklch(0.86 0.012 100);
+  --input: oklch(0.86 0.012 100);
+  --ring: oklch(0.7 0.19 36);
+  --radius: 0.75rem;
+}
+
+* { border-color: var(--border); }
+html { background: var(--background); }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope), Arial, sans-serif;
+}
+button, input { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #ff5a36; color: white; }
