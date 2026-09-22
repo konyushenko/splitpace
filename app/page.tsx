@@ -266,7 +266,7 @@ export default function Home() {
     const height = canvas.height;
     const margin = 64;
     const contentWidth = width - margin * 2;
-    ctx.fillStyle = '#f4f4f4';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
     ctx.textBaseline = 'alphabetic';
 
@@ -282,11 +282,11 @@ export default function Home() {
     ctx.fillText(runnerName, margin, 112);
 
     const metricWidth = contentWidth / 3;
-    const logoY = 44;
+    const logoY = 54;
     const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
     if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
 
-    const metricsY = Math.max(146, 64 + logoHeight + 36);
+    const metricsY = Math.max(146, logoY + logoHeight + 46);
     const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
@@ -342,10 +342,10 @@ export default function Home() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
     ctx.fillStyle = 'rgba(23,24,19,.72)';
-    ctx.font = '700 16px Manrope, Arial';
+    ctx.font = '700 18px Manrope, Arial';
     headers.forEach((header, index) => ctx.fillText(header, columns[index], headerTop + 29));
 
-    const rowFont = Math.max(14, Math.min(19, rowHeight * 0.46));
+    const rowFont = Math.max(16, Math.min(22, rowHeight * 0.44));
     timedSplits.forEach((split, index) => {
       const y = headerTop + headerHeight + rowHeight * index;
       if (index > 0) {
@@ -381,10 +381,10 @@ export default function Home() {
     const legendX = width - margin - 310;
     ctx.fillStyle = '#e20921';
     ctx.beginPath();
-    ctx.arc(legendX, legendY, 5, 0, Math.PI * 2);
+    ctx.arc(legendX, legendY, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(23,24,19,.62)';
-    ctx.font = '600 15px Manrope, Arial';
+    ctx.font = '600 19px Manrope, Arial';
     ctx.textBaseline = 'middle';
     ctx.fillText('Темп', legendX + 13, legendY);
     ctx.setLineDash([5, 5]);
@@ -418,7 +418,7 @@ export default function Home() {
         ctx.lineTo(graph.right, y(tick));
         ctx.stroke();
         ctx.fillStyle = 'rgba(23,24,19,.5)';
-        ctx.font = '500 15px Manrope, Arial';
+        ctx.font = '600 18px Manrope, Arial';
         ctx.textAlign = 'left';
         ctx.fillText(formatPace(tick), graphTitleX, y(tick) + 4);
       }
@@ -451,7 +451,7 @@ export default function Home() {
         ctx.stroke();
         if (Math.abs(item.distance - 21.1) < 0.001) return;
         const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
-        ctx.font = `500 ${graphData.length > 10 ? 12 : 14}px Manrope, Arial`;
+        ctx.font = `600 ${graphData.length > 10 ? 15 : 17}px Manrope, Arial`;
         const labelWidth = ctx.measureText(distanceLabel).width;
         const labelLeft = x(item.distance) - labelWidth / 2;
         const firstFreeRow = labelRightEdges.findIndex((rightEdge) => labelLeft > rightEdge + 5);
