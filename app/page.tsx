@@ -257,7 +257,7 @@ export default function Home() {
     ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
-      ctx.fillStyle = index === 1 ? '#ff5a36' : '#171813';
+      ctx.fillStyle = index === 1 ? '#e20921' : '#171813';
       ctx.beginPath();
       if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
       else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
@@ -362,7 +362,7 @@ export default function Home() {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.strokeStyle = '#ff5a36';
+      ctx.strokeStyle = '#e20921';
       ctx.lineWidth = 5;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
@@ -374,7 +374,7 @@ export default function Home() {
       const labelRightEdges = [-Infinity, -Infinity];
       graphData.forEach((item, index) => {
         ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#ff5a36';
+        ctx.strokeStyle = '#e20921';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
@@ -412,7 +412,7 @@ export default function Home() {
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 lg:px-10">
           <span className="text-sm font-medium text-black/60">Результат забега</span>
           <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-            <span className="grid size-7 place-items-center rounded-full bg-[#ff5a36] text-[10px] font-black text-white">SP</span>
+            <span className="grid size-7 place-items-center rounded-full bg-[#e20921] text-[10px] font-black text-white">SP</span>
             SPLITPACE
           </div>
           <Button onClick={exportPng} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
@@ -447,13 +447,13 @@ export default function Home() {
               <div><h2 id="splits-heading" className="text-xl font-bold tracking-tight">Сплиты</h2><p className="mt-1 text-sm text-black/45">Дистанция и темп на участке</p></div>
               <Button variant="ghost" size="icon-sm" onClick={() => { setSplits(initialSplits); setManualTotal(null); }} className="rounded-full text-black/45 hover:text-black" aria-label="Вернуть исходные значения"><RotateCcw /></Button>
             </div>
-            <div className="mb-5 rounded-xl bg-[#fff1ec] p-3.5">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Star className="size-4 fill-[#ff5a36] text-[#ff5a36]" /> Избранное</div>
+            <div className="mb-5 rounded-xl bg-[#fdecee] p-3.5">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Star className="size-4 fill-[#e20921] text-[#e20921]" /> Избранное</div>
               {favorites.length > 0 && (
                 <select
                   value={activeFavoriteId ?? ''}
                   onChange={(event) => loadFavorite(event.target.value)}
-                  className="mb-2 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-medium outline-none transition focus:border-[#ff5a36]"
+                  className="mb-2 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-medium outline-none transition focus:border-[#e20921]"
                   aria-label="Выбрать сохранённый набор сплитов"
                 >
                   <option value="">Выберите сохранённый набор</option>
@@ -480,7 +480,7 @@ export default function Home() {
                       <button disabled={index === 0} onClick={() => moveSplit(index, -1)} className="grid size-5 place-items-center rounded text-black/35 transition hover:bg-white hover:text-black disabled:pointer-events-none disabled:opacity-20" aria-label={`Переместить сплит ${index + 1} выше`}><ChevronUp className="size-3.5" /></button>
                       <button disabled={index === splits.length - 1} onClick={() => moveSplit(index, 1)} className="grid size-5 place-items-center rounded text-black/35 transition hover:bg-white hover:text-black disabled:pointer-events-none disabled:opacity-20" aria-label={`Переместить сплит ${index + 1} ниже`}><ChevronDown className="size-3.5" /></button>
                     </div>
-                    <button onClick={() => setSplits((current) => current.filter((item) => item.id !== split.id))} className="grid size-8 place-items-center rounded-lg text-black/25 transition hover:bg-[#ffe5de] hover:text-[#c8371d]" aria-label={`Удалить сплит ${index + 1}`}><Trash2 className="size-4" /></button>
+                    <button onClick={() => setSplits((current) => current.filter((item) => item.id !== split.id))} className="grid size-8 place-items-center rounded-lg text-black/25 transition hover:bg-[#fbe7ea] hover:text-[#b5081c]" aria-label={`Удалить сплит ${index + 1}`}><Trash2 className="size-4" /></button>
                   </div>
                 </div>
               ))}
@@ -536,7 +536,7 @@ export default function Home() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <h2 id="chart-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Темп по дистанции</h2>
                 <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-black/55">
-                  <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#ff5a36]" /> Темп</span>
+                  <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#e20921]" /> Темп</span>
                   <span className="flex items-center gap-2"><i className="h-px w-5 border-t border-dashed border-black/50" /> Средний темп</span>
                 </div>
               </div>
@@ -550,7 +550,7 @@ export default function Home() {
 }
 
 function Metric({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
-  return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#ff5a36]' : 'border-white/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-white/50">{detail}</p></div>;
+  return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#e20921]' : 'border-white/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-white/50">{detail}</p></div>;
 }
 
 function TotalMetric({ value, adjusted, editing, draft, onDraftChange, onEdit, onSave, onReset }: { value: string; adjusted: boolean; editing: boolean; draft: string; onDraftChange: (value: string) => void; onEdit: () => void; onSave: () => void; onReset: () => void }) {
@@ -598,15 +598,15 @@ function PaceChart({ data, average }: { data: Array<Split & { distance: number; 
     <div className="mt-7 h-[310px] overflow-hidden sm:h-[340px]" role="img" aria-label="График изменения темпа по дистанции">
       {data.length < 1 ? <div className="grid h-full place-items-center rounded-2xl border border-dashed border-black/15 text-center text-sm text-black/40">Добавьте корректный сплит,<br />чтобы увидеть график.</div> : (
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none">
-          <defs><linearGradient id="paceArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ff5a36" stopOpacity="0.18" /><stop offset="100%" stopColor="#ff5a36" stopOpacity="0" /></linearGradient></defs>
+          <defs><linearGradient id="paceArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#e20921" stopOpacity="0.18" /><stop offset="100%" stopColor="#e20921" stopOpacity="0" /></linearGradient></defs>
           {ticks.map((tick) => <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={y(tick)} y2={y(tick)} stroke="#171813" strokeOpacity="0.09" /><text x={padding.left - 12} y={y(tick) + 4} textAnchor="end" fontSize="11" fill="#171813" fillOpacity="0.45">{formatPace(tick)}</text></g>)}
           {chartData.map((item) => <g key={`axis-${item.id}`}><line x1={x(item.distance)} x2={x(item.distance)} y1={padding.top} y2={padding.top + chartHeight} stroke="#171813" strokeOpacity="0.045" /><text x={x(item.distance)} y={height - 30} textAnchor="middle" fontSize="11" fill="#171813" fillOpacity="0.5">{item.distance} км</text></g>)}
           <text x={padding.left + chartWidth / 2} y={height - 5} textAnchor="middle" fontSize="11" fontWeight="600" fill="#171813" fillOpacity="0.48">Дистанция, км</text>
           <text x="15" y={padding.top + chartHeight / 2} textAnchor="middle" fontSize="11" fontWeight="600" fill="#171813" fillOpacity="0.48" transform={`rotate(-90 15 ${padding.top + chartHeight / 2})`}>Темп, мин/км</text>
           <path d={areaPath} fill="url(#paceArea)" />
           <line x1={padding.left} x2={width - padding.right} y1={y(average)} y2={y(average)} stroke="#171813" strokeOpacity="0.5" strokeDasharray="6 6" />
-          <path d={linePath} fill="none" stroke="#ff5a36" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          {chartData.map((item) => <g key={`point-${item.id}`}><circle cx={x(item.distance)} cy={y(item.paceSeconds)} r="7" fill="white" stroke="#ff5a36" strokeWidth="3" vectorEffect="non-scaling-stroke" /><title>{`${item.distance} км — ${formatPace(item.paceSeconds)} /км`}</title></g>)}
+          <path d={linePath} fill="none" stroke="#e20921" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {chartData.map((item) => <g key={`point-${item.id}`}><circle cx={x(item.distance)} cy={y(item.paceSeconds)} r="7" fill="white" stroke="#e20921" strokeWidth="3" vectorEffect="non-scaling-stroke" /><title>{`${item.distance} км — ${formatPace(item.paceSeconds)} /км`}</title></g>)}
         </svg>
       )}
     </div>

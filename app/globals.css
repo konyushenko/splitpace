@@ -63,4 +63,4 @@ body {
 }
 button, input { font: inherit; }
 button { cursor: pointer; }
-::selection { background: #ff5a36; color: white; }
+::selection { background: #e20921; color: white; }
