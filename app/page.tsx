@@ -160,6 +160,11 @@ export default function Home() {
     paceSeconds: paceToSeconds(split.pace),
   })).filter((split) => split.distance > 0 && split.paceSeconds > 0).sort((a, b) => a.distance - b.distance), [splits]);
 
+  const graphSplits = useMemo(
+    () => parsed.filter((split) => Math.abs(split.distance - 21.1) >= 0.001),
+    [parsed],
+  );
+
   const timedSplits = useMemo(() => {
     let previousDistance = 0;
     let previousPointSeconds = 0;
@@ -390,7 +395,7 @@ export default function Home() {
 
     const graphRight = wideSectionX + wideSectionWidth - 12;
     const legendY = graphY + 39;
-    const legendX = graphRight - 310;
+    const legendX = graphRight - 252;
     ctx.fillStyle = '#e20921';
     ctx.beginPath();
     ctx.arc(legendX, legendY, 6, 0, Math.PI * 2);
@@ -410,14 +415,14 @@ export default function Home() {
     ctx.fillText('Средний темп', legendX + 128, legendY);
     ctx.textBaseline = 'alphabetic';
 
-    if (parsed.length) {
+    if (graphSplits.length) {
       const graphTitleX = wideSectionX;
       const graph = { left: wideSectionX + 52, top: graphY + 96, right: graphRight, bottom: graphY + graphHeight - 56 };
-      const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
+      const graphData = [{ ...graphSplits[0], distance: 0 }, ...graphSplits];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
       const maxPace = Math.ceil((Math.max(...paces, summary.average) + 15) / 10) * 10;
-      const maxDistance = Math.max(...parsed.map((item) => item.distance));
+      const maxDistance = Math.max(...graphSplits.map((item) => item.distance));
       const x = (distance: number) => graph.left + (distance / maxDistance) * (graph.right - graph.left);
       const y = (pace: number) => graph.top + ((pace - minPace) / Math.max(1, maxPace - minPace)) * (graph.bottom - graph.top);
 
@@ -463,8 +468,7 @@ export default function Home() {
         ctx.stroke();
         if (
           Math.abs(item.distance) < 0.001 ||
-          Math.abs(item.distance - maxDistance) < 0.001 ||
-          Math.abs(item.distance - 21.1) < 0.001
+          Math.abs(item.distance - maxDistance) < 0.001
         ) return;
         const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
         ctx.font = `600 ${graphData.length > 10 ? 15 : 17}px Manrope, Arial`;
@@ -481,10 +485,10 @@ export default function Home() {
     }
 
     ctx.fillStyle = 'rgba(23,24,19,.55)';
-    ctx.font = '700 16px Manrope, Arial';
+    ctx.font = `700 ${rowFont}px Manrope, Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('SHELGORN', width / 2, height - 24);
+    ctx.fillText('SHELGORN', width / 2, height - 34);
     ctx.textAlign = 'left';
 
     canvas.toBlob((blob) => {
@@ -633,7 +637,7 @@ export default function Home() {
                   <span className="flex items-center gap-2"><i className="h-px w-5 border-t border-dashed border-black/50" /> Средний темп</span>
                 </div>
               </div>
-              <PaceChart data={parsed} average={summary.average} />
+              <PaceChart data={graphSplits} average={summary.average} />
             </section>
           </div>
         </div>
