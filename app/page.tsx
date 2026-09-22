@@ -106,6 +106,15 @@ function traceSmoothCanvas(ctx: CanvasRenderingContext2D, points: ChartPoint[]) 
   }
 }
 
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
 export default function Home() {
   const [runnerName, setRunnerName] = useState('Валерия Димитрова');
   const [draftName, setDraftName] = useState(runnerName);
@@ -246,6 +255,7 @@ export default function Home() {
 
   const exportPng = async () => {
     await document.fonts.ready;
+    const logo = await loadCanvasImage('/mm-logo.svg').catch(() => null);
     const canvas = document.createElement('canvas');
     canvas.width = 1080;
     canvas.height = 1350;
@@ -271,9 +281,13 @@ export default function Home() {
     } while (nameSize > 30);
     ctx.fillText(runnerName, margin, 112);
 
-    const metricsY = 146;
-    const metricsHeight = 112;
     const metricWidth = contentWidth / 3;
+    const logoY = 64;
+    const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
+    if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
+
+    const metricsY = Math.max(146, logoY + logoHeight + 36);
+    const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
       ['Средний темп', `${formatPace(summary.average)} /км`],
@@ -282,23 +296,23 @@ export default function Home() {
     ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
-      ctx.fillStyle = index === 1 ? '#e20921' : '#171813';
+      ctx.fillStyle = index === 1 ? '#fdecee' : '#ffffff';
       ctx.beginPath();
       if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
       else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
       else ctx.rect(x, metricsY, metricWidth, metricsHeight);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.6)';
+      ctx.fillStyle = 'rgba(23,24,19,.5)';
       ctx.font = '700 14px Manrope, Arial';
       ctx.fillText(label, x + 24, metricsY + 24);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#171813';
       ctx.font = '700 27px Manrope, Arial';
       ctx.fillText(value, x + 24, metricsY + 52);
     });
     ctx.textBaseline = 'alphabetic';
 
     const tableY = metricsY + metricsHeight + 30;
-    const rowHeight = Math.max(22, Math.min(60, 540 / Math.max(timedSplits.length, 1)));
+    const rowHeight = Math.max(22, Math.min(60, 500 / Math.max(timedSplits.length, 1)));
     const tableTitleHeight = 80;
     const tableBottomPadding = 26;
     const headerTop = tableY + tableTitleHeight;
