@@ -285,7 +285,7 @@ export default function Home() {
 
     const columns = [margin + 26, margin + 350, margin + 550, margin + 750];
     const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
-    ctx.fillStyle = '#e8e8e1';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
     ctx.fillStyle = 'rgba(23,24,19,.72)';
     ctx.font = '700 14px Manrope, Arial';
