@@ -394,7 +394,7 @@ export default function Home() {
     ctx.textBaseline = 'alphabetic';
 
     const graphRight = wideSectionX + wideSectionWidth - 12;
-    const legendY = graphY + 39;
+    const legendY = graphY + 49;
     const legendX = graphRight - 252;
     ctx.fillStyle = '#e20921';
     ctx.beginPath();
