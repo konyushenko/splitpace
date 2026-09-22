@@ -254,6 +254,7 @@ export default function Home() {
       ['Средний темп', `${formatPace(summary.average)} /км`],
       ['Дистанция', `${summary.distance.toLocaleString('ru-RU')} км`],
     ];
+    ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
       ctx.fillStyle = index === 1 ? '#ff5a36' : '#171813';
@@ -264,24 +265,29 @@ export default function Home() {
       ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.6)';
       ctx.font = '700 14px Manrope, Arial';
-      ctx.fillText(label, x + 24, metricsY + 29);
+      ctx.fillText(label, x + 24, metricsY + 24);
       ctx.fillStyle = '#ffffff';
       ctx.font = '700 27px Manrope, Arial';
-      ctx.fillText(value, x + 24, metricsY + 70);
+      ctx.fillText(value, x + 24, metricsY + 51);
     });
+    ctx.textBaseline = 'alphabetic';
 
     const tableY = 258;
     const rowHeight = Math.max(22, Math.min(60, 540 / Math.max(timedSplits.length, 1)));
-    const headerTop = tableY + 62;
+    const tableTitleHeight = 80;
+    const tableBottomPadding = 26;
+    const headerTop = tableY + tableTitleHeight;
     const headerHeight = 46;
-    const tableHeight = 62 + headerHeight + timedSplits.length * rowHeight;
+    const tableHeight = tableTitleHeight + headerHeight + timedSplits.length * rowHeight + tableBottomPadding;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(margin, tableY, contentWidth, tableHeight, 22);
     ctx.fill();
     ctx.fillStyle = '#171813';
     ctx.font = '800 26px Manrope, Arial';
-    ctx.fillText('Время на точках', margin + 26, tableY + 39);
+    ctx.textBaseline = 'top';
+    ctx.fillText('Время на точках', margin + 26, tableY + 26);
+    ctx.textBaseline = 'alphabetic';
 
     const columns = [margin + 26, margin + 350, margin + 550, margin + 750];
     const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
@@ -319,10 +325,12 @@ export default function Home() {
     ctx.fill();
     ctx.fillStyle = '#171813';
     ctx.font = '800 26px Manrope, Arial';
-    ctx.fillText('Темп по дистанции', margin + 26, graphY + 42);
+    ctx.textBaseline = 'top';
+    ctx.fillText('Темп по дистанции', margin + 26, graphY + 26);
+    ctx.textBaseline = 'alphabetic';
 
     if (parsed.length) {
-      const graph = { left: margin + 86, top: graphY + 72, right: width - margin - 28, bottom: graphY + graphHeight - 48 };
+      const graph = { left: margin + 86, top: graphY + 80, right: width - margin - 28, bottom: graphY + graphHeight - 56 };
       const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
@@ -362,7 +370,7 @@ export default function Home() {
       traceSmoothCanvas(ctx, curvePoints);
       ctx.stroke();
 
-      const labelEvery = Math.max(1, Math.ceil(graphData.length / 7));
+      const labelRightEdges = [-Infinity, -Infinity];
       graphData.forEach((item, index) => {
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#ff5a36';
@@ -371,12 +379,16 @@ export default function Home() {
         ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        if (index % labelEvery === 0 || index === graphData.length - 1) {
-          ctx.fillStyle = 'rgba(23,24,19,.5)';
-          ctx.font = '500 13px Manrope, Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${item.distance} км`, x(item.distance), graph.bottom + 27);
-        }
+        const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
+        ctx.font = `500 ${graphData.length > 10 ? 10 : 12}px Manrope, Arial`;
+        const labelWidth = ctx.measureText(distanceLabel).width;
+        const labelLeft = x(item.distance) - labelWidth / 2;
+        const firstFreeRow = labelRightEdges.findIndex((rightEdge) => labelLeft > rightEdge + 5);
+        const labelRow = firstFreeRow === -1 ? index % 2 : firstFreeRow;
+        labelRightEdges[labelRow] = x(item.distance) + labelWidth / 2;
+        ctx.fillStyle = 'rgba(23,24,19,.5)';
+        ctx.textAlign = 'center';
+        ctx.fillText(distanceLabel, x(item.distance), graph.bottom + 23 + labelRow * 15);
       });
       ctx.textAlign = 'left';
     }
