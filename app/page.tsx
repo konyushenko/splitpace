@@ -318,7 +318,7 @@ export default function Home() {
     });
 
     const graphY = tableY + tableHeight + 28;
-    const graphHeight = Math.max(170, Math.min(260, height - graphY - 48));
+    const graphHeight = Math.max(190, Math.min(280, height - graphY - margin));
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(margin, graphY, contentWidth, graphHeight, 22);
@@ -380,6 +380,7 @@ export default function Home() {
         ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        if (Math.abs(item.distance - 21.1) < 0.001) return;
         const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
         ctx.font = `500 ${graphData.length > 10 ? 10 : 12}px Manrope, Arial`;
         const labelWidth = ctx.measureText(distanceLabel).width;
