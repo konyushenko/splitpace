@@ -231,7 +231,7 @@ export default function Home() {
     const height = canvas.height;
     const margin = 64;
     const contentWidth = width - margin * 2;
-    ctx.fillStyle = '#f3f3ef';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
     ctx.textBaseline = 'alphabetic';
 
@@ -279,7 +279,7 @@ export default function Home() {
     const headerTop = tableY + tableTitleHeight;
     const headerHeight = 46;
     const tableHeight = tableTitleHeight + headerHeight + timedSplits.length * rowHeight + tableBottomPadding;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#f4f4f4';
     ctx.beginPath();
     ctx.roundRect(margin, tableY, contentWidth, tableHeight, 22);
     ctx.fill();
@@ -291,7 +291,7 @@ export default function Home() {
 
     const columns = [margin + 26, margin + 350, margin + 550, margin + 750];
     const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#f4f4f4';
     ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
     ctx.fillStyle = 'rgba(23,24,19,.72)';
     ctx.font = '700 14px Manrope, Arial';
