@@ -320,12 +320,12 @@ export default function Home() {
     });
     ctx.textBaseline = 'alphabetic';
 
-    const wideSectionX = 32;
-    const wideSectionWidth = width - wideSectionX * 2;
-    const tableY = metricsY + metricsHeight + 30;
+    const wideSectionX = margin + 8;
+    const wideSectionWidth = width - wideSectionX - (margin + 4);
+    const tableY = metricsY + metricsHeight + 6;
     const rowHeight = Math.max(22, Math.min(60, 500 / Math.max(timedSplits.length, 1)));
     const tableTitleHeight = 80;
-    const tableBottomPadding = 26;
+    const tableBottomPadding = 14;
     const headerTop = tableY + tableTitleHeight;
     const headerHeight = 46;
     const tableHeight = tableTitleHeight + headerHeight + timedSplits.length * rowHeight + tableBottomPadding;
@@ -363,7 +363,7 @@ export default function Home() {
         ctx.strokeStyle = 'rgba(23,24,19,.09)';
         ctx.beginPath();
         ctx.moveTo(wideSectionX, y);
-        ctx.lineTo(width - wideSectionX, y);
+        ctx.lineTo(wideSectionX + wideSectionWidth, y);
         ctx.stroke();
       }
       ctx.font = `600 ${rowFont}px Manrope, Arial`;
@@ -376,7 +376,7 @@ export default function Home() {
       ctx.fillText(`${formatPace(split.paceSeconds)} /км`, columns[3], y + rowHeight * 0.68);
     });
 
-    const graphY = tableY + tableHeight + 14;
+    const graphY = tableY + tableHeight + 4;
     const graphHeight = Math.max(190, Math.min(280, height - graphY - margin));
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
@@ -411,7 +411,7 @@ export default function Home() {
 
     if (parsed.length) {
       const graphTitleX = wideSectionX;
-      const graph = { left: wideSectionX + 104, top: graphY + 96, right: width - wideSectionX - 10, bottom: graphY + graphHeight - 56 };
+      const graph = { left: wideSectionX + 52, top: graphY + 96, right: wideSectionX + wideSectionWidth - 12, bottom: graphY + graphHeight - 56 };
       const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
@@ -460,7 +460,11 @@ export default function Home() {
         ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        if (Math.abs(item.distance - 21.1) < 0.001) return;
+        if (
+          Math.abs(item.distance) < 0.001 ||
+          Math.abs(item.distance - maxDistance) < 0.001 ||
+          Math.abs(item.distance - 21.1) < 0.001
+        ) return;
         const distanceLabel = `${item.distance.toLocaleString('ru-RU')} км`;
         ctx.font = `600 ${graphData.length > 10 ? 15 : 17}px Manrope, Arial`;
         const labelWidth = ctx.measureText(distanceLabel).width;
