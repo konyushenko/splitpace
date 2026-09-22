@@ -128,13 +128,7 @@ export default function Home() {
           <div className="flex items-center gap-3 text-sm text-black/55"><span className="size-2 rounded-full bg-[#68a176]" /> Данные обновляются сразу</div>
         </section>
 
-        <section className="mb-5 grid overflow-hidden rounded-[22px] border border-black/10 bg-[#171813] text-white sm:grid-cols-3">
-          <Metric label="Общее время" value={formatDuration(summary.totalSeconds)} detail="расчёт по сплитам" />
-          <Metric label="Средний темп" value={`${formatPace(summary.average)} /км`} detail={`лучший ${formatPace(summary.fastest)} /км`} accent />
-          <Metric label="Дистанция" value={`${summary.distance.toLocaleString('ru-RU')} км`} detail={`${parsed.length} контрольных точек`} />
-        </section>
-
-        <div className="grid gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
+        <div className="grid items-start gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
           <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-6" aria-labelledby="splits-heading">
             <div className="mb-5 flex items-start justify-between">
               <div><h2 id="splits-heading" className="text-xl font-bold tracking-tight">Сплиты</h2><p className="mt-1 text-sm text-black/45">Дистанция и темп на участке</p></div>
@@ -156,20 +150,28 @@ export default function Home() {
             <Button onClick={addSplit} variant="outline" className="mt-4 h-10 w-full rounded-xl border-dashed border-black/20 bg-transparent text-black/65 hover:bg-[#f4f4f0]"><Plus /> Добавить сплит</Button>
           </section>
 
-          <section className="flex min-h-[520px] flex-col rounded-[22px] border border-black/10 bg-white p-5 sm:p-7" aria-labelledby="chart-heading">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#ff5a36]">Статистика забега</p><h2 id="chart-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Темп по дистанции</h2></div>
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-black/55">
-                <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#ff5a36]" /> Темп</span>
-                <span className="flex items-center gap-2"><i className="h-px w-5 border-t border-dashed border-black/50" /> Средний темп</span>
+          <div className="min-w-0 space-y-5 xl:self-start">
+            <section className="grid overflow-hidden rounded-[22px] border border-black/10 bg-[#171813] text-white sm:grid-cols-3" aria-label="Итоговые показатели">
+              <Metric label="Общее время" value={formatDuration(summary.totalSeconds)} detail="расчёт по сплитам" />
+              <Metric label="Средний темп" value={`${formatPace(summary.average)} /км`} detail={`лучший ${formatPace(summary.fastest)} /км`} accent />
+              <Metric label="Дистанция" value={`${summary.distance.toLocaleString('ru-RU')} км`} detail={`${parsed.length} контрольных точек`} />
+            </section>
+
+            <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-7" aria-labelledby="chart-heading">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#ff5a36]">Статистика забега</p><h2 id="chart-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Темп по дистанции</h2></div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-black/55">
+                  <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#ff5a36]" /> Темп</span>
+                  <span className="flex items-center gap-2"><i className="h-px w-5 border-t border-dashed border-black/50" /> Средний темп</span>
+                </div>
               </div>
-            </div>
-            <PaceChart data={parsed} average={summary.average} />
-            <div className="mt-5 grid gap-3 border-t border-black/10 pt-5 sm:grid-cols-2">
-              <Insight icon={<ArrowUpRight className="size-4" />} title="Самый быстрый участок" value={`${formatPace(summary.fastest)} /км`} tone="green" />
-              <Insight icon={<ArrowDownRight className="size-4" />} title="Самый медленный участок" value={`${formatPace(summary.slowest)} /км`} tone="orange" />
-            </div>
-          </section>
+              <PaceChart data={parsed} average={summary.average} />
+              <div className="mt-5 grid gap-3 border-t border-black/10 pt-5 sm:grid-cols-2">
+                <Insight icon={<ArrowUpRight className="size-4" />} title="Самый быстрый участок" value={`${formatPace(summary.fastest)} /км`} tone="green" />
+                <Insight icon={<ArrowDownRight className="size-4" />} title="Самый медленный участок" value={`${formatPace(summary.slowest)} /км`} tone="orange" />
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>
@@ -201,9 +203,9 @@ function PaceChart({ data, average }: { data: Array<Split & { distance: number; 
   const areaPoints = data.length ? `${x(data[0].distance)},${padding.top + chartHeight} ${points} ${x(data.at(-1)!.distance)},${padding.top + chartHeight}` : '';
 
   return (
-    <div className="mt-7 min-h-[300px] flex-1 overflow-hidden" role="img" aria-label="График изменения темпа по дистанции">
-      {data.length < 2 ? <div className="grid h-full min-h-[280px] place-items-center rounded-2xl border border-dashed border-black/15 text-center text-sm text-black/40">Добавьте минимум два корректных сплита,<br />чтобы увидеть график.</div> : (
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-h-[300px] w-full overflow-visible" preserveAspectRatio="none">
+    <div className="mt-7 h-[310px] overflow-hidden sm:h-[340px]" role="img" aria-label="График изменения темпа по дистанции">
+      {data.length < 2 ? <div className="grid h-full place-items-center rounded-2xl border border-dashed border-black/15 text-center text-sm text-black/40">Добавьте минимум два корректных сплита,<br />чтобы увидеть график.</div> : (
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none">
           <defs><linearGradient id="paceArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ff5a36" stopOpacity="0.18" /><stop offset="100%" stopColor="#ff5a36" stopOpacity="0" /></linearGradient></defs>
           {ticks.map((tick) => <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={y(tick)} y2={y(tick)} stroke="#171813" strokeOpacity="0.09" /><text x={padding.left - 12} y={y(tick) + 4} textAnchor="end" fontSize="11" fill="#171813" fillOpacity="0.45">{formatPace(tick)}</text></g>)}
           {data.map((item) => <g key={item.id}><line x1={x(item.distance)} x2={x(item.distance)} y1={padding.top} y2={padding.top + chartHeight} stroke="#171813" strokeOpacity="0.045" /><text x={x(item.distance)} y={height - 10} textAnchor="middle" fontSize="11" fill="#171813" fillOpacity="0.5">{item.distance} км</text></g>)}
