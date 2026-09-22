@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Check, Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -36,6 +36,15 @@ function formatDuration(seconds: number) {
   return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+function formatElapsed(seconds: number) {
+  const rounded = Math.round(seconds);
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
+  if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
 export default function Home() {
   const [runnerName, setRunnerName] = useState('Алексей Воронов');
   const [draftName, setDraftName] = useState(runnerName);
@@ -48,20 +57,25 @@ export default function Home() {
     paceSeconds: paceToSeconds(split.pace),
   })).filter((split) => split.distance > 0 && split.paceSeconds > 0).sort((a, b) => a.distance - b.distance), [splits]);
 
-  const summary = useMemo(() => {
+  const timedSplits = useMemo(() => {
     let previousDistance = 0;
-    let totalSeconds = 0;
-    parsed.forEach((split) => {
-      const segment = Math.max(0, split.distance - previousDistance);
-      totalSeconds += segment * split.paceSeconds;
+    let cumulativeSeconds = 0;
+    return parsed.map((split) => {
+      const segmentDistance = Math.max(0, split.distance - previousDistance);
+      const segmentSeconds = segmentDistance * split.paceSeconds;
+      cumulativeSeconds += segmentSeconds;
       previousDistance = split.distance;
+      return { ...split, segmentSeconds, cumulativeSeconds };
     });
+  }, [parsed]);
+
+  const summary = useMemo(() => {
     const distance = parsed.at(-1)?.distance ?? 0;
+    const totalSeconds = timedSplits.at(-1)?.cumulativeSeconds ?? 0;
     const average = distance ? totalSeconds / distance : 0;
     const fastest = parsed.length ? Math.min(...parsed.map((s) => s.paceSeconds)) : 0;
-    const slowest = parsed.length ? Math.max(...parsed.map((s) => s.paceSeconds)) : 0;
-    return { distance, totalSeconds, average, fastest, slowest };
-  }, [parsed]);
+    return { distance, totalSeconds, average, fastest };
+  }, [parsed, timedSplits]);
 
   const updateSplit = (id: number, key: 'km' | 'pace', value: string) => {
     setSplits((current) => current.map((split) => split.id === id ? { ...split, [key]: value } : split));
@@ -110,7 +124,6 @@ export default function Home() {
       <div className="mx-auto max-w-[1440px] px-5 py-8 lg:px-10 lg:py-10">
         <section className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-black/40">Профиль результата</p>
             {editingName ? (
               <div className="flex max-w-[560px] items-center gap-2">
                 <Input autoFocus value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && saveName()} className="h-12 rounded-none border-0 border-b-2 border-[#171813] bg-transparent px-0 text-3xl font-bold shadow-none focus-visible:ring-0 sm:text-5xl" aria-label="Имя бегуна" />
@@ -157,19 +170,47 @@ export default function Home() {
               <Metric label="Дистанция" value={`${summary.distance.toLocaleString('ru-RU')} км`} detail={`${parsed.length} контрольных точек`} />
             </section>
 
+            <section className="overflow-hidden rounded-[22px] border border-black/10 bg-white" aria-labelledby="timing-heading">
+              <div className="flex items-center justify-between border-b border-black/10 px-5 py-5 sm:px-7">
+                <div>
+                  <h2 id="timing-heading" className="text-xl font-bold tracking-tight sm:text-2xl">Временные сплиты</h2>
+                  <p className="mt-1 text-sm text-black/45">Накопленное время и результат каждого участка</p>
+                </div>
+                <span className="rounded-full bg-[#f3f3ef] px-3 py-1.5 text-xs font-semibold text-black/50">{timedSplits.length}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[660px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-black/10 text-xs font-semibold text-black/45">
+                      <th className="px-5 py-3.5 sm:px-7">Промежуточная точка</th>
+                      <th className="px-5 py-3.5">Время на точке</th>
+                      <th className="px-5 py-3.5">Время за участок</th>
+                      <th className="px-5 py-3.5 sm:pr-7">Темп на участке</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timedSplits.map((split) => (
+                      <tr key={`timing-${split.id}`} className="border-b border-black/[0.07] last:border-b-0">
+                        <td className="px-5 py-4 font-semibold sm:px-7">{split.distance.toLocaleString('ru-RU')} км</td>
+                        <td className="px-5 py-4 tabular-nums text-black/65">{formatElapsed(split.cumulativeSeconds)}</td>
+                        <td className="px-5 py-4 tabular-nums text-black/65">{formatElapsed(split.segmentSeconds)}</td>
+                        <td className="px-5 py-4 font-semibold tabular-nums sm:pr-7">{formatPace(split.paceSeconds)} /км</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
             <section className="rounded-[22px] border border-black/10 bg-white p-5 sm:p-7" aria-labelledby="chart-heading">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#ff5a36]">Статистика забега</p><h2 id="chart-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Темп по дистанции</h2></div>
+                <h2 id="chart-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Темп по дистанции</h2>
                 <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-black/55">
                   <span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#ff5a36]" /> Темп</span>
                   <span className="flex items-center gap-2"><i className="h-px w-5 border-t border-dashed border-black/50" /> Средний темп</span>
                 </div>
               </div>
               <PaceChart data={parsed} average={summary.average} />
-              <div className="mt-5 grid gap-3 border-t border-black/10 pt-5 sm:grid-cols-2">
-                <Insight icon={<ArrowUpRight className="size-4" />} title="Самый быстрый участок" value={`${formatPace(summary.fastest)} /км`} tone="green" />
-                <Insight icon={<ArrowDownRight className="size-4" />} title="Самый медленный участок" value={`${formatPace(summary.slowest)} /км`} tone="orange" />
-              </div>
             </section>
           </div>
         </div>
@@ -180,10 +221,6 @@ export default function Home() {
 
 function Metric({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
   return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#ff5a36]' : 'border-white/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-white/50">{detail}</p></div>;
-}
-
-function Insight({ icon, title, value, tone }: { icon: React.ReactNode; title: string; value: string; tone: 'green' | 'orange' }) {
-  return <div className="flex items-center justify-between rounded-xl bg-[#f4f4f0] p-3.5"><div className="flex items-center gap-2.5"><span className={`grid size-8 place-items-center rounded-full ${tone === 'green' ? 'bg-[#dcecdf] text-[#317445]' : 'bg-[#ffe1d8] text-[#c33f23]'}`}>{icon}</span><span className="text-sm text-black/55">{title}</span></div><strong className="text-sm">{value}</strong></div>;
 }
 
 function PaceChart({ data, average }: { data: Array<Split & { distance: number; paceSeconds: number }>; average: number }) {
