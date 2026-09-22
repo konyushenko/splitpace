@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Download, Pencil, Plus, RotateCcw, Star, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Download, Eye, Pencil, Plus, RotateCcw, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 type Split = { id: number; km: string; time: string; pace: string };
@@ -128,6 +129,9 @@ export default function Home() {
   const [favoriteName, setFavoriteName] = useState('');
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [renderingPreview, setRenderingPreview] = useState(false);
 
   useEffect(() => {
     fetch('/api/favorites')
@@ -153,6 +157,10 @@ export default function Home() {
     }, 450);
     return () => window.clearTimeout(timer);
   }, [activeFavoriteId, favoritesReady, splits]);
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const parsed = useMemo(() => splits.map((split) => ({
     ...split,
@@ -258,7 +266,7 @@ export default function Home() {
     setManualTotal(null);
   };
 
-  const exportPng = async () => {
+  const renderPng = async () => {
     await document.fonts.ready;
     const logo = await loadCanvasImage('/mm-logo.svg').catch(() => null);
     const canvas = document.createElement('canvas');
@@ -491,15 +499,30 @@ export default function Home() {
     ctx.fillText('SHELGORN', width / 2, height - 34);
     ctx.textAlign = 'left';
 
-    canvas.toBlob((blob) => {
+    return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  };
+
+  const exportPng = async () => {
+    const blob = await renderPng();
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${runnerName.toLowerCase().replaceAll(' ', '-')}-splitpace.png`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const previewPng = async () => {
+    setRenderingPreview(true);
+    try {
+      const blob = await renderPng();
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${runnerName.toLowerCase().replaceAll(' ', '-')}-splitpace.png`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+      setPreviewUrl(URL.createObjectURL(blob));
+      setPreviewOpen(true);
+    } finally {
+      setRenderingPreview(false);
+    }
   };
 
   return (
@@ -511,9 +534,14 @@ export default function Home() {
             <span className="grid size-7 place-items-center rounded-full bg-[#e20921] text-[10px] font-black text-white">SP</span>
             SPLITPACE
           </div>
-          <Button onClick={exportPng} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
-            <Download /> <span className="hidden sm:inline">PNG 4:5</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={previewPng} disabled={renderingPreview} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
+              <Eye /> <span className="hidden sm:inline">{renderingPreview ? 'Готовлю' : 'Предпросмотр'}</span>
+            </Button>
+            <Button onClick={exportPng} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
+              <Download /> <span className="hidden sm:inline">PNG 4:5</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -534,7 +562,6 @@ export default function Home() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3 text-sm text-black/55"><span className="size-2 rounded-full bg-[#68a176]" /> Данные обновляются сразу</div>
         </section>
 
         <div className="grid items-start gap-5 xl:grid-cols-[500px_minmax(0,1fr)]">
@@ -597,7 +624,7 @@ export default function Home() {
                 onSave={saveTotal}
                 onReset={() => { setManualTotal(null); setEditingTotal(false); }}
               />
-              <Metric label="Средний темп" value={`${formatPace(summary.average)} /км`} detail={`лучший ${formatPace(summary.fastest)} /км`} accent />
+              <Metric label="Средний темп" value={`${formatPace(summary.average)} /км`} detail={`лучший ${formatPace(summary.fastest)} /км`} />
               <Metric label="Дистанция" value={`${summary.distance.toLocaleString('ru-RU')} км`} detail={`${parsed.length} контрольных точек`} />
             </section>
 
@@ -642,12 +669,26 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[min(900px,calc(100%-2rem))] gap-3 overflow-hidden rounded-[22px] bg-[#f3f3ef] p-4 sm:p-5">
+          <DialogHeader className="pr-10">
+            <DialogTitle className="text-xl font-bold tracking-tight">Предпросмотр PNG</DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 overflow-auto rounded-xl bg-black/5 p-2 sm:p-3">
+            {previewUrl && <img src={previewUrl} alt="Предпросмотр итогового PNG" className="mx-auto h-auto max-h-[calc(100vh-11rem)] w-auto max-w-full rounded-lg bg-white shadow-sm" />}
+          </div>
+          <DialogFooter className="-mx-4 -mb-4 px-4 sm:-mx-5 sm:-mb-5 sm:px-5">
+            <Button onClick={exportPng} className="rounded-full bg-[#171813] px-4 text-white hover:bg-black/80"><Download /> Скачать PNG</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
 
-function Metric({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
-  return <div className={`min-w-0 p-5 sm:p-7 ${accent ? 'bg-[#fdecee]' : 'border-black/10 sm:border-r last:border-r-0'}`}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-black/45">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-black/45">{detail}</p></div>;
+function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="min-w-0 border-black/10 p-5 sm:border-r sm:p-7 last:border-r-0"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-black/45">{label}</p><p className="mt-3 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{value}</p><p className="mt-2 text-xs text-black/45">{detail}</p></div>;
 }
 
 function TotalMetric({ value, adjusted, editing, draft, onDraftChange, onEdit, onSave, onReset }: { value: string; adjusted: boolean; editing: boolean; draft: string; onDraftChange: (value: string) => void; onEdit: () => void; onSave: () => void; onReset: () => void }) {
