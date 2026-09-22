@@ -244,10 +244,10 @@ export default function Home() {
       if (ctx.measureText(runnerName).width <= contentWidth) break;
       nameSize -= 2;
     } while (nameSize > 30);
-    ctx.fillText(runnerName, margin, 92);
+    ctx.fillText(runnerName, margin, 112);
 
-    const metricsY = 126;
-    const metricsHeight = 102;
+    const metricsY = 146;
+    const metricsHeight = 112;
     const metricWidth = contentWidth / 3;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
@@ -268,11 +268,11 @@ export default function Home() {
       ctx.fillText(label, x + 24, metricsY + 24);
       ctx.fillStyle = '#ffffff';
       ctx.font = '700 27px Manrope, Arial';
-      ctx.fillText(value, x + 24, metricsY + 51);
+      ctx.fillText(value, x + 24, metricsY + 52);
     });
     ctx.textBaseline = 'alphabetic';
 
-    const tableY = 258;
+    const tableY = metricsY + metricsHeight + 30;
     const rowHeight = Math.max(22, Math.min(60, 540 / Math.max(timedSplits.length, 1)));
     const tableTitleHeight = 80;
     const tableBottomPadding = 26;
@@ -330,7 +330,8 @@ export default function Home() {
     ctx.textBaseline = 'alphabetic';
 
     if (parsed.length) {
-      const graph = { left: margin + 86, top: graphY + 80, right: width - margin - 28, bottom: graphY + graphHeight - 56 };
+      const graphTitleX = margin + 26;
+      const graph = { left: margin + 68, top: graphY + 96, right: width - margin - 28, bottom: graphY + graphHeight - 56 };
       const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
@@ -349,8 +350,8 @@ export default function Home() {
         ctx.stroke();
         ctx.fillStyle = 'rgba(23,24,19,.5)';
         ctx.font = '500 13px Manrope, Arial';
-        ctx.textAlign = 'right';
-        ctx.fillText(formatPace(tick), graph.left - 12, y(tick) + 4);
+        ctx.textAlign = 'left';
+        ctx.fillText(formatPace(tick), graphTitleX, y(tick) + 4);
       }
 
       ctx.setLineDash([8, 8]);
