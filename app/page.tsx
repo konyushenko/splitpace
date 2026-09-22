@@ -368,7 +368,7 @@ export default function Home() {
       }
       ctx.font = `600 ${rowFont}px Manrope, Arial`;
       ctx.fillStyle = '#171813';
-      ctx.fillText(`${split.distance.toLocaleString('ru-RU')} км`, columns[0], y + rowHeight * 0.68);
+      ctx.fillText(`${split.distance.toLocaleString('ru-RU')} км`, columns[0] + 5, y + rowHeight * 0.68);
       ctx.fillStyle = 'rgba(23,24,19,.65)';
       ctx.fillText(formatElapsed(split.cumulativeSeconds), columns[1], y + rowHeight * 0.68);
       ctx.fillText(formatElapsed(split.segmentSeconds), columns[2], y + rowHeight * 0.68);
@@ -377,7 +377,7 @@ export default function Home() {
     });
 
     const graphY = tableY + tableHeight + 4;
-    const graphHeight = Math.max(190, Math.min(280, height - graphY - margin));
+    const graphHeight = Math.max(190, Math.min(320, height - graphY - 72));
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(wideSectionX, graphY, wideSectionWidth, graphHeight, 22);
@@ -478,6 +478,13 @@ export default function Home() {
       });
       ctx.textAlign = 'left';
     }
+
+    ctx.fillStyle = 'rgba(23,24,19,.55)';
+    ctx.font = '700 16px Manrope, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('SHELGORN', width / 2, height - 24);
+    ctx.textAlign = 'left';
 
     canvas.toBlob((blob) => {
       if (!blob) return;
