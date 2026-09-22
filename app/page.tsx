@@ -296,7 +296,7 @@ export default function Home() {
     ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#f4f4f4';
       ctx.beginPath();
       if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
       else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
@@ -320,6 +320,8 @@ export default function Home() {
     });
     ctx.textBaseline = 'alphabetic';
 
+    const wideSectionX = 32;
+    const wideSectionWidth = width - wideSectionX * 2;
     const tableY = metricsY + metricsHeight + 30;
     const rowHeight = Math.max(22, Math.min(60, 500 / Math.max(timedSplits.length, 1)));
     const tableTitleHeight = 80;
@@ -329,18 +331,23 @@ export default function Home() {
     const tableHeight = tableTitleHeight + headerHeight + timedSplits.length * rowHeight + tableBottomPadding;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(margin, tableY, contentWidth, tableHeight, 22);
+    ctx.roundRect(wideSectionX, tableY, wideSectionWidth, tableHeight, 22);
     ctx.fill();
     ctx.fillStyle = '#171813';
     ctx.font = '800 26px Manrope, Arial';
     ctx.textBaseline = 'top';
-    ctx.fillText('Время на точках', margin + 26, tableY + 26);
+    ctx.fillText('Время на точках', wideSectionX, tableY + 26);
     ctx.textBaseline = 'alphabetic';
 
-    const columns = [margin + 26, margin + 350, margin + 550, margin + 750];
+    const columns = [
+      wideSectionX,
+      wideSectionX + wideSectionWidth * 0.34,
+      wideSectionX + wideSectionWidth * 0.58,
+      wideSectionX + wideSectionWidth * 0.79,
+    ];
     const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(margin, headerTop, contentWidth, headerHeight);
+    ctx.fillRect(wideSectionX, headerTop, wideSectionWidth, headerHeight);
     ctx.fillStyle = 'rgba(23,24,19,.72)';
     ctx.font = '700 18px Manrope, Arial';
     headers.forEach((header, index) => ctx.fillText(header, columns[index], headerTop + 29));
@@ -348,11 +355,15 @@ export default function Home() {
     const rowFont = Math.max(16, Math.min(22, rowHeight * 0.44));
     timedSplits.forEach((split, index) => {
       const y = headerTop + headerHeight + rowHeight * index;
+      if (index % 2 === 1) {
+        ctx.fillStyle = '#f4f4f4';
+        ctx.fillRect(wideSectionX, y, wideSectionWidth, rowHeight);
+      }
       if (index > 0) {
         ctx.strokeStyle = 'rgba(23,24,19,.09)';
         ctx.beginPath();
-        ctx.moveTo(margin + 24, y);
-        ctx.lineTo(width - margin - 24, y);
+        ctx.moveTo(wideSectionX, y);
+        ctx.lineTo(width - wideSectionX, y);
         ctx.stroke();
       }
       ctx.font = `600 ${rowFont}px Manrope, Arial`;
@@ -365,20 +376,20 @@ export default function Home() {
       ctx.fillText(`${formatPace(split.paceSeconds)} /км`, columns[3], y + rowHeight * 0.68);
     });
 
-    const graphY = tableY + tableHeight + 28;
+    const graphY = tableY + tableHeight + 14;
     const graphHeight = Math.max(190, Math.min(280, height - graphY - margin));
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(margin, graphY, contentWidth, graphHeight, 22);
+    ctx.roundRect(wideSectionX, graphY, wideSectionWidth, graphHeight, 22);
     ctx.fill();
     ctx.fillStyle = '#171813';
     ctx.font = '800 26px Manrope, Arial';
     ctx.textBaseline = 'top';
-    ctx.fillText('Темп по дистанции', margin + 26, graphY + 26);
+    ctx.fillText('Темп по дистанции', wideSectionX, graphY + 26);
     ctx.textBaseline = 'alphabetic';
 
     const legendY = graphY + 41;
-    const legendX = width - margin - 310;
+    const legendX = width - wideSectionX - 310;
     ctx.fillStyle = '#e20921';
     ctx.beginPath();
     ctx.arc(legendX, legendY, 6, 0, Math.PI * 2);
@@ -399,8 +410,8 @@ export default function Home() {
     ctx.textBaseline = 'alphabetic';
 
     if (parsed.length) {
-      const graphTitleX = margin + 26;
-      const graph = { left: margin + 68, top: graphY + 96, right: width - margin - 28, bottom: graphY + graphHeight - 56 };
+      const graphTitleX = wideSectionX;
+      const graph = { left: wideSectionX + 104, top: graphY + 96, right: width - wideSectionX - 10, bottom: graphY + graphHeight - 56 };
       const graphData = [{ ...parsed[0], distance: 0 }, ...parsed];
       const paces = graphData.map((item) => item.paceSeconds);
       const minPace = Math.floor((Math.min(...paces, summary.average) - 15) / 10) * 10;
