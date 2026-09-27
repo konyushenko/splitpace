@@ -220,6 +220,9 @@ export default function Home() {
   const [runnerName, setRunnerName] = useState('Валерия Димитрова');
   const [draftName, setDraftName] = useState(runnerName);
   const [editingName, setEditingName] = useState(false);
+  const [runnerPlace, setRunnerPlace] = useState('1');
+  const [draftPlace, setDraftPlace] = useState(runnerPlace);
+  const [editingPlace, setEditingPlace] = useState(false);
   const [splits, setSplits] = useState<Split[]>(initialSplits);
   const [manualTotal, setManualTotal] = useState<string | null>(null);
   const [draftTotal, setDraftTotal] = useState('');
@@ -352,6 +355,11 @@ export default function Home() {
     setEditingName(false);
   };
 
+  const savePlace = () => {
+    if (draftPlace.trim()) setRunnerPlace(draftPlace.trim());
+    setEditingPlace(false);
+  };
+
   const saveTotal = () => {
     const seconds = durationToSeconds(draftTotal);
     if (seconds > 0) setManualTotal(formatDuration(seconds));
@@ -419,7 +427,13 @@ export default function Home() {
       nameSize -= 2;
     } while (nameSize > 24);
     const nameLineHeight = Math.round(nameSize * 1.08);
-    const firstNameBaseline = (nameLines.length > 1 ? 96 : 112) + nameOffset;
+    const placeBaseline = (nameLines.length > 1 ? 58 : 74) + nameOffset;
+    const firstNameBaseline = placeBaseline + 54;
+    ctx.fillStyle = colors.secondaryText;
+    ctx.font = '700 19px Manrope, Arial';
+    ctx.fillText(`${runnerPlace} место`, margin, placeBaseline);
+    ctx.fillStyle = colors.text;
+    ctx.font = `800 ${nameSize}px Manrope, Arial`;
     nameLines.slice(0, 2).forEach((line, index) => {
       ctx.fillText(line, margin, firstNameBaseline + nameLineHeight * index);
     });
@@ -766,7 +780,21 @@ export default function Home() {
 
       <div className="mx-auto max-w-[1440px] px-5 py-8 lg:px-10 lg:py-10">
         <section className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
+          <div className="min-w-0">
+            {editingPlace ? (
+              <div className="mb-3 flex max-w-[260px] items-center gap-2">
+                <span className="shrink-0 text-sm font-semibold text-black/50">Место</span>
+                <Input autoFocus inputMode="numeric" value={draftPlace} onChange={(event) => setDraftPlace(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePlace()} className="h-9 w-28 rounded-lg border-black/15 bg-white px-3 font-semibold shadow-none focus-visible:ring-2" aria-label="Место бегуна" />
+                <Button onClick={savePlace} size="icon" className="size-9 rounded-full bg-[#171813]" aria-label="Сохранить место"><Check className="size-4" /></Button>
+              </div>
+            ) : (
+              <div className="mb-3 flex items-center gap-2 text-base font-semibold text-black/55">
+                <span>Место: {runnerPlace}</span>
+                <button onClick={() => { setDraftPlace(runnerPlace); setEditingPlace(true); }} className="grid size-7 shrink-0 place-items-center rounded-full border border-black/15 text-black/45 transition hover:border-black hover:bg-white hover:text-black" aria-label="Редактировать место бегуна">
+                  <Pencil className="size-3" />
+                </button>
+              </div>
+            )}
             {editingName ? (
               <div className="flex max-w-[560px] items-center gap-2">
                 <Input autoFocus value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && saveName()} className="h-12 rounded-none border-0 border-b-2 border-[#171813] bg-transparent px-0 text-3xl font-bold shadow-none focus-visible:ring-0 sm:text-5xl" aria-label="Имя бегуна" />
