@@ -323,8 +323,8 @@ export default function Home() {
       nameSize -= 2;
     } while (nameSize > 24);
     const nameLineHeight = Math.round(nameSize * 1.08);
-    const firstNameBaseline = nameLines.length > 1 ? 96 : 112;
-    const placeBaseline = firstNameBaseline - 38;
+    const placeBaseline = nameLines.length > 1 ? 58 : 74;
+    const firstNameBaseline = placeBaseline + 54;
     ctx.fillStyle = 'rgba(23,24,19,.58)';
     ctx.font = '700 19px Manrope, Arial';
     ctx.fillText(`${runnerPlace} место`, margin, placeBaseline);
