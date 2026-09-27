@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Download, Eye, Pencil, Plus, RotateCcw, Star, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Download, Eye, Palette, Pencil, Plus, RotateCcw, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 type Split = { id: number; km: string; time: string; pace: string };
@@ -67,6 +67,88 @@ function addCalculatedPointTimes(splits: Array<Omit<Split, 'time'> & { time?: st
     return { ...split, time: split.time?.trim() || formatElapsed(cumulativeSeconds) };
   });
 }
+
+const defaultLogoUrl = '/mm-logo.svg';
+// PNG logo box is a third of the content width (1080 - 2 * 64); height follows the image ratio.
+const pngLogoWidth = (1080 - 64 * 2) / 3;
+const autoLogoHeight = (image: HTMLImageElement) => Math.round(pngLogoWidth * (image.naturalHeight / image.naturalWidth)) || 76;
+const defaultLogoHeight = 76; // mm-logo.svg is 151×36
+
+const defaultPngColors = {
+  background: '#ffffff',
+  text: '#171813',
+  secondaryText: '#747471',
+  tabBackground: '#f4f4f4',
+  tabText: '#171813',
+  tabSecondaryText: '#7b7b78',
+  oddRowBackground: '#ffffff',
+  evenRowBackground: '#f4f4f4',
+  oddRowText: '#171813',
+  evenRowText: '#171813',
+  signature: '#7f807d',
+  accent: '#e20921',
+  chartText: '#8b8c89',
+  chartLines: '#e8e8e7',
+};
+
+type PngColors = typeof defaultPngColors;
+
+// Background opacity in percent; odd rows were never filled, so they default to transparent.
+const defaultPngOpacity = { tabBackground: 100, oddRowBackground: 0, evenRowBackground: 100 };
+
+type PngOpacity = typeof defaultPngOpacity;
+
+type PngStyle = { colors: PngColors; opacity: PngOpacity; logoUrl: string; logoHeight: number; nameOffset: number };
+type StylePreset = { id: string; name: string; style: PngStyle };
+
+// Built-in preset: the original look. Saved presets live in D1 via /api/presets.
+const moscowPreset: StylePreset = {
+  id: '',
+  name: 'Московский марафон',
+  style: { colors: defaultPngColors, opacity: defaultPngOpacity, logoUrl: defaultLogoUrl, logoHeight: defaultLogoHeight, nameOffset: 0 },
+};
+
+// Fill keys added after a preset was saved with the built-in defaults.
+function withDefaultStyle(style: Partial<PngStyle>): PngStyle {
+  return {
+    ...moscowPreset.style,
+    ...style,
+    colors: { ...defaultPngColors, ...style.colors },
+    opacity: { ...defaultPngOpacity, ...style.opacity },
+  };
+}
+
+function readDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const pngColorLabels: Array<[keyof PngColors, string]> = [
+  ['background', 'Фон'],
+  ['text', 'Основной текст'],
+  ['secondaryText', 'Вспомогательный текст'],
+  ['tabBackground', 'Фон табов'],
+  ['tabText', 'Основной текст табов'],
+  ['tabSecondaryText', 'Вспомогательный текст табов'],
+  ['oddRowBackground', 'Фон нечётных строк'],
+  ['evenRowBackground', 'Фон чётных строк'],
+  ['oddRowText', 'Основной текст нечётных строк'],
+  ['evenRowText', 'Основной текст чётных строк'],
+  ['signature', 'Логотип SHELGORN'],
+  ['accent', 'Акцент графика'],
+  ['chartText', 'Текст графика'],
+  ['chartLines', 'Разделители'],
+];
+
+// Changing a general text color repaints every block-specific color of the same kind.
+const colorChildren: Partial<Record<keyof PngColors, Array<keyof PngColors>>> = {
+  text: ['tabText', 'oddRowText', 'evenRowText'],
+  secondaryText: ['tabSecondaryText'],
+};
 
 type ChartPoint = { x: number; y: number };
 
@@ -150,6 +232,26 @@ export default function Home() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [renderingPreview, setRenderingPreview] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(defaultLogoUrl);
+  const [colors, setColors] = useState<PngColors>(defaultPngColors);
+  const [opacity, setOpacity] = useState<PngOpacity>(defaultPngOpacity);
+  const [logoHeight, setLogoHeight] = useState(defaultLogoHeight);
+  const [nameOffset, setNameOffset] = useState(0);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [styleCanvas, setStyleCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [presets, setPresets] = useState<StylePreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState('');
+  const [presetDialog, setPresetDialog] = useState<'create' | 'update' | null>(null);
+  const [presetName, setPresetName] = useState('');
+  const [presetError, setPresetError] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/presets')
+      .then((response) => response.ok ? response.json() as Promise<{ presets: Array<{ id: string; name: string; style: Partial<PngStyle> }> }> : Promise.reject())
+      .then((data) => setPresets(data.presets.map((preset) => ({ ...preset, style: withDefaultStyle(preset.style) }))))
+      .catch(() => setPresets([]));
+  }, []);
 
   useEffect(() => {
     fetch('/api/favorites')
@@ -284,10 +386,12 @@ export default function Home() {
     setManualTotal(null);
   };
 
-  const renderPng = async () => {
+  const loadLogo = async () => {
     await document.fonts.ready;
-    const logo = await loadCanvasImage('/mm-logo.svg').catch(() => null);
-    const canvas = document.createElement('canvas');
+    return loadCanvasImage(logoUrl).catch(() => null);
+  };
+
+  const drawPng = (canvas: HTMLCanvasElement, logo: HTMLImageElement | null) => {
     canvas.width = 1080;
     canvas.height = 1350;
     const ctx = canvas.getContext('2d');
@@ -297,11 +401,11 @@ export default function Home() {
     const height = canvas.height;
     const margin = 64;
     const contentWidth = width - margin * 2;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, width, height);
     ctx.textBaseline = 'alphabetic';
 
-    ctx.fillStyle = '#171813';
+    ctx.fillStyle = colors.text;
     ctx.textAlign = 'left';
 
     const metricWidth = contentWidth / 3;
@@ -315,17 +419,18 @@ export default function Home() {
       nameSize -= 2;
     } while (nameSize > 24);
     const nameLineHeight = Math.round(nameSize * 1.08);
-    const firstNameBaseline = nameLines.length > 1 ? 96 : 112;
+    const firstNameBaseline = (nameLines.length > 1 ? 96 : 112) + nameOffset;
     nameLines.slice(0, 2).forEach((line, index) => {
       ctx.fillText(line, margin, firstNameBaseline + nameLineHeight * index);
     });
     const lastNameBaseline = firstNameBaseline + nameLineHeight * (Math.min(nameLines.length, 2) - 1);
 
     const logoY = 54;
-    const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
-    if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
+    const drawnLogoHeight = logo?.naturalHeight ? logoHeight : 0;
+    const logoWidth = logo?.naturalHeight ? logoHeight * (logo.naturalWidth / logo.naturalHeight) : 0;
+    if (logo && drawnLogoHeight) ctx.drawImage(logo, width - margin - logoWidth, logoY, logoWidth, drawnLogoHeight);
 
-    const metricsY = Math.max(146, logoY + logoHeight + 46, lastNameBaseline + 42);
+    const metricsY = Math.max(146, logoY + drawnLogoHeight + 46, lastNameBaseline + 42);
     const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
@@ -335,20 +440,22 @@ export default function Home() {
     ctx.textBaseline = 'top';
     metrics.forEach(([label, value], index) => {
       const x = margin + metricWidth * index;
-      ctx.fillStyle = '#f4f4f4';
+      ctx.fillStyle = colors.tabBackground;
+      ctx.globalAlpha = opacity.tabBackground / 100;
       ctx.beginPath();
       if (index === 0) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [22, 0, 0, 22]);
       else if (index === 2) ctx.roundRect(x, metricsY, metricWidth, metricsHeight, [0, 22, 22, 0]);
       else ctx.rect(x, metricsY, metricWidth, metricsHeight);
       ctx.fill();
-      ctx.fillStyle = 'rgba(23,24,19,.5)';
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = colors.tabSecondaryText;
       ctx.font = '700 14px Manrope, Arial';
       ctx.fillText(label, x + 24, metricsY + 24);
-      ctx.fillStyle = '#171813';
+      ctx.fillStyle = colors.tabText;
       ctx.font = '700 27px Manrope, Arial';
       ctx.fillText(value, x + 24, metricsY + 52);
     });
-    ctx.strokeStyle = 'rgba(23,24,19,.12)';
+    ctx.strokeStyle = colors.chartLines;
     ctx.lineWidth = 1;
     [1, 2].forEach((index) => {
       const separatorX = margin + metricWidth * index;
@@ -368,11 +475,11 @@ export default function Home() {
     const headerTop = tableY + tableTitleHeight;
     const headerHeight = 46;
     const tableHeight = tableTitleHeight + headerHeight + timedSplits.length * rowHeight + tableBottomPadding;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = colors.background;
     ctx.beginPath();
     ctx.roundRect(wideSectionX, tableY, wideSectionWidth, tableHeight, 22);
     ctx.fill();
-    ctx.fillStyle = '#171813';
+    ctx.fillStyle = colors.text;
     ctx.font = '800 26px Manrope, Arial';
     ctx.textBaseline = 'top';
     ctx.fillText('Время на точках', wideSectionX, tableY + 26);
@@ -385,43 +492,45 @@ export default function Home() {
       wideSectionX + wideSectionWidth * 0.79,
     ];
     const headers = ['Промежуточная точка', 'Время на точке', 'Время за участок', 'Темп на участке'];
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = colors.background;
     ctx.fillRect(wideSectionX, headerTop, wideSectionWidth, headerHeight);
-    ctx.fillStyle = 'rgba(23,24,19,.72)';
+    ctx.fillStyle = colors.secondaryText;
     ctx.font = '700 18px Manrope, Arial';
     headers.forEach((header, index) => ctx.fillText(header, columns[index], headerTop + 29));
 
     const rowFont = Math.max(16, Math.min(22, rowHeight * 0.44));
     timedSplits.forEach((split, index) => {
       const y = headerTop + headerHeight + rowHeight * index;
-      if (index % 2 === 1) {
-        ctx.fillStyle = '#f4f4f4';
-        ctx.fillRect(wideSectionX, y, wideSectionWidth, rowHeight);
-      }
+      const evenRow = index % 2 === 1;
+      const rowText = evenRow ? colors.evenRowText : colors.oddRowText;
+      ctx.fillStyle = evenRow ? colors.evenRowBackground : colors.oddRowBackground;
+      ctx.globalAlpha = (evenRow ? opacity.evenRowBackground : opacity.oddRowBackground) / 100;
+      ctx.fillRect(wideSectionX, y, wideSectionWidth, rowHeight);
+      ctx.globalAlpha = 1;
       if (index > 0) {
-        ctx.strokeStyle = 'rgba(23,24,19,.09)';
+        ctx.strokeStyle = colors.chartLines;
         ctx.beginPath();
         ctx.moveTo(wideSectionX, y);
         ctx.lineTo(wideSectionX + wideSectionWidth, y);
         ctx.stroke();
       }
       ctx.font = `600 ${rowFont}px Manrope, Arial`;
-      ctx.fillStyle = '#171813';
+      ctx.fillStyle = rowText;
       ctx.fillText(`${split.distance.toLocaleString('ru-RU')} км`, columns[0] + 5, y + rowHeight * 0.68);
-      ctx.fillStyle = 'rgba(23,24,19,.65)';
+      ctx.fillStyle = colors.secondaryText;
       ctx.fillText(formatElapsed(split.cumulativeSeconds), columns[1], y + rowHeight * 0.68);
       ctx.fillText(formatElapsed(split.segmentSeconds), columns[2], y + rowHeight * 0.68);
-      ctx.fillStyle = '#171813';
+      ctx.fillStyle = rowText;
       ctx.fillText(`${formatPace(split.paceSeconds)} /км`, columns[3], y + rowHeight * 0.68);
     });
 
     const graphY = tableY + tableHeight + 4;
     const graphHeight = Math.max(190, Math.min(320, height - graphY - 72));
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = colors.background;
     ctx.beginPath();
     ctx.roundRect(wideSectionX, graphY, wideSectionWidth, graphHeight, 22);
     ctx.fill();
-    ctx.fillStyle = '#171813';
+    ctx.fillStyle = colors.text;
     ctx.font = '800 26px Manrope, Arial';
     ctx.textBaseline = 'top';
     ctx.fillText('Темп по дистанции', wideSectionX, graphY + 26);
@@ -430,16 +539,16 @@ export default function Home() {
     const graphRight = wideSectionX + wideSectionWidth - 12;
     const legendY = graphY + 49;
     const legendX = graphRight - 252;
-    ctx.fillStyle = '#e20921';
+    ctx.fillStyle = colors.accent;
     ctx.beginPath();
     ctx.arc(legendX, legendY, 6, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(23,24,19,.62)';
+    ctx.fillStyle = colors.chartText;
     ctx.font = '600 19px Manrope, Arial';
     ctx.textBaseline = 'middle';
     ctx.fillText('Темп', legendX + 13, legendY);
     ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = 'rgba(23,24,19,.5)';
+    ctx.strokeStyle = colors.chartText;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(legendX + 88, legendY);
@@ -462,27 +571,27 @@ export default function Home() {
 
       for (let index = 0; index < 5; index += 1) {
         const tick = minPace + ((maxPace - minPace) / 4) * index;
-        ctx.strokeStyle = 'rgba(23,24,19,.1)';
+        ctx.strokeStyle = colors.chartLines;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(graph.left, y(tick));
         ctx.lineTo(graph.right, y(tick));
         ctx.stroke();
-        ctx.fillStyle = 'rgba(23,24,19,.5)';
+        ctx.fillStyle = colors.chartText;
         ctx.font = '600 18px Manrope, Arial';
         ctx.textAlign = 'left';
         ctx.fillText(formatPace(tick), graphTitleX, y(tick) + 4);
       }
 
       ctx.setLineDash([8, 8]);
-      ctx.strokeStyle = 'rgba(23,24,19,.5)';
+      ctx.strokeStyle = colors.chartText;
       ctx.beginPath();
       ctx.moveTo(graph.left, y(summary.average));
       ctx.lineTo(graph.right, y(summary.average));
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.strokeStyle = '#e20921';
+      ctx.strokeStyle = colors.accent;
       ctx.lineWidth = 5;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
@@ -493,8 +602,8 @@ export default function Home() {
 
       const labelRightEdges = [-Infinity, -Infinity];
       graphData.forEach((item, index) => {
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#e20921';
+        ctx.fillStyle = colors.background;
+        ctx.strokeStyle = colors.accent;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(x(item.distance), y(item.paceSeconds), 6, 0, Math.PI * 2);
@@ -511,20 +620,24 @@ export default function Home() {
         const firstFreeRow = labelRightEdges.findIndex((rightEdge) => labelLeft > rightEdge + 5);
         const labelRow = firstFreeRow === -1 ? index % 2 : firstFreeRow;
         labelRightEdges[labelRow] = x(item.distance) + labelWidth / 2;
-        ctx.fillStyle = 'rgba(23,24,19,.5)';
+        ctx.fillStyle = colors.chartText;
         ctx.textAlign = 'center';
         ctx.fillText(distanceLabel, x(item.distance), graph.bottom + 24 + labelRow * 18);
       });
       ctx.textAlign = 'left';
     }
 
-    ctx.fillStyle = 'rgba(23,24,19,.55)';
+    ctx.fillStyle = colors.signature;
     ctx.font = `700 ${rowFont}px Manrope, Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('SHELGORN', width / 2, height - 34);
     ctx.textAlign = 'left';
+  };
 
+  const renderPng = async () => {
+    const canvas = document.createElement('canvas');
+    drawPng(canvas, await loadLogo());
     return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   };
 
@@ -551,6 +664,83 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    if (!styleCanvas) return;
+    let cancelled = false;
+    void loadLogo().then((logo) => {
+      if (!cancelled) drawPng(styleCanvas, logo);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [styleCanvas, colors, opacity, logoUrl, logoHeight, nameOffset]);
+
+  const uploadLogo = async (file: File) => {
+    // Data URL rather than a blob URL so the logo can be stored inside a preset.
+    const url = await readDataUrl(file).catch(() => '');
+    const image = url ? await loadCanvasImage(url).catch(() => null) : null;
+    if (!image) return;
+    setLogoUrl(url);
+    setLogoHeight(Math.min(240, autoLogoHeight(image)));
+  };
+
+  const applyStyle = (style: PngStyle) => {
+    setColors(style.colors);
+    setOpacity(style.opacity);
+    setLogoUrl(style.logoUrl);
+    setLogoHeight(style.logoHeight);
+    setNameOffset(style.nameOffset);
+  };
+
+  const selectPreset = (id: string) => {
+    setActivePresetId(id);
+    applyStyle((presets.find((preset) => preset.id === id) ?? moscowPreset).style);
+  };
+
+  const openPresetDialog = (mode: 'create' | 'update') => {
+    setPresetName('');
+    setPresetError('');
+    setPresetDialog(mode);
+  };
+
+  const savePreset = async () => {
+    const style: PngStyle = { colors, opacity, logoUrl, logoHeight, nameOffset };
+    const name = presetName.trim();
+    if (presetDialog === 'create' && !name) return setPresetError('Введите название пресета');
+    setSavingPreset(true);
+    setPresetError('');
+    try {
+      const response = await fetch('/api/presets', {
+        method: presetDialog === 'create' ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(presetDialog === 'create' ? { name, style } : { id: activePresetId, style }),
+      });
+      if (!response.ok) return setPresetError('Не удалось сохранить пресет. Если загружен большой логотип, попробуйте файл поменьше.');
+      if (presetDialog === 'create') {
+        const data = await response.json() as { preset: { id: string; name: string } };
+        setPresets((current) => [...current, { ...data.preset, style }]);
+        setActivePresetId(data.preset.id);
+      } else {
+        setPresets((current) => current.map((preset) => preset.id === activePresetId ? { ...preset, style } : preset));
+      }
+      setPresetDialog(null);
+    } catch {
+      setPresetError('Не удалось сохранить пресет');
+    } finally {
+      setSavingPreset(false);
+    }
+  };
+
+  const activePreset = presets.find((preset) => preset.id === activePresetId);
+
+  const setColor = (key: keyof PngColors, value: string) => {
+    setColors((current) => ({
+      ...current,
+      [key]: value,
+      ...Object.fromEntries((colorChildren[key] ?? []).map((child) => [child, value])),
+    }));
+  };
+
   return (
     <main className="min-h-screen bg-[#f3f3ef] text-[#171813]">
       <header className="border-b border-black/10 bg-[#f3f3ef]/90 backdrop-blur">
@@ -563,6 +753,9 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Button onClick={previewPng} disabled={renderingPreview} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
               <Eye /> <span className="hidden sm:inline">{renderingPreview ? 'Готовлю' : 'Предпросмотр'}</span>
+            </Button>
+            <Button onClick={() => setStyleOpen(true)} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3" aria-label="Редактировать внешний вид">
+              <Palette /> <span className="hidden sm:inline">Редактировать внешний вид</span>
             </Button>
             <Button onClick={exportPng} variant="outline" size="sm" className="rounded-full border-black/15 bg-transparent px-3">
               <Download /> <span className="hidden sm:inline">PNG 4:5</span>
@@ -707,6 +900,74 @@ export default function Home() {
           <DialogFooter className="-mx-4 -mb-4 px-4 sm:-mx-5 sm:-mb-5 sm:px-5">
             <Button onClick={exportPng} className="rounded-full bg-[#171813] px-4 text-white hover:bg-black/80"><Download /> Скачать PNG</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={styleOpen} onOpenChange={setStyleOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[min(1200px,calc(100%-2rem))] gap-3 overflow-hidden rounded-[22px] bg-[#f3f3ef] p-4 sm:max-w-[min(1200px,calc(100%-2rem))] sm:p-5">
+          <DialogHeader className="flex-row flex-wrap items-center gap-2 pr-10">
+            <DialogTitle className="mr-2 text-xl font-bold tracking-tight">Внешний вид PNG</DialogTitle>
+            <div className="relative">
+              <select value={activePresetId} onChange={(event) => selectPreset(event.target.value)} className="h-8 appearance-none rounded-full border border-black/15 bg-white pl-3 pr-8 text-sm font-medium outline-none focus:border-[#e20921]" aria-label="Пресет оформления">
+                {[moscowPreset, ...presets].map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-black/45" />
+            </div>
+            {activePreset && <Button variant="outline" size="sm" onClick={() => openPresetDialog('update')} className="rounded-full border-black/15 bg-transparent px-3"><Check /> Обновить пресет</Button>}
+            <Button variant="outline" size="sm" onClick={() => openPresetDialog('create')} className="rounded-full border-black/15 bg-transparent px-3"><Plus /> Сохранить как новый</Button>
+            <Button variant="outline" size="sm" onClick={() => applyStyle((activePreset ?? moscowPreset).style)} className="rounded-full border-black/15 bg-transparent px-3"><RotateCcw /> Сбросить</Button>
+          </DialogHeader>
+          <div className="grid min-h-0 gap-4 overflow-auto md:grid-cols-[280px_minmax(0,1fr)]">
+            <div className="md:relative">
+            <div className="space-y-2 md:absolute md:inset-0 md:overflow-y-auto md:pr-1">
+              <label htmlFor="png-logo" className="block rounded-xl bg-white p-3 text-sm font-semibold">
+                Логотип (SVG, PNG, WebP)
+                <Input id="png-logo" type="file" accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadLogo(file); }} className="mt-2 h-10 cursor-pointer bg-[#f4f4f0]" />
+              </label>
+              <label className="block rounded-xl bg-white p-3 text-sm font-semibold">
+                <span className="flex justify-between">Высота логотипа <span className="font-medium text-black/45">{logoHeight}px</span></span>
+                <input type="range" min={20} max={240} value={logoHeight} onChange={(event) => setLogoHeight(Number(event.target.value))} className="mt-2 w-full accent-[#171813]" />
+              </label>
+              <label className="block rounded-xl bg-white p-3 text-sm font-semibold">
+                <span className="flex justify-between">Положение имени <span className="font-medium text-black/45">{nameOffset > 0 ? `+${nameOffset}` : nameOffset}px</span></span>
+                <input type="range" min={-50} max={100} value={nameOffset} onChange={(event) => setNameOffset(Number(event.target.value))} className="mt-2 w-full accent-[#171813]" />
+              </label>
+              {pngColorLabels.map(([key, label]) => (
+                <div key={key} className="rounded-xl bg-white p-2 text-sm font-medium">
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input type="color" value={colors[key]} onChange={(event) => setColor(key, event.target.value)} className="size-8 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-0.5" />
+                    {label}
+                  </label>
+                  {key in opacity && (
+                    <label className="mt-2 flex items-center gap-3 text-xs text-black/45">
+                      Непрозрачность
+                      <input type="range" min={0} max={100} value={opacity[key as keyof PngOpacity]} onChange={(event) => setOpacity((current) => ({ ...current, [key]: Number(event.target.value) }))} className="min-w-0 flex-1 accent-[#171813]" />
+                      <span className="w-9 text-right">{opacity[key as keyof PngOpacity]}%</span>
+                    </label>
+                  )}
+                </div>
+              ))}
+            </div>
+            </div>
+            <div className="rounded-xl bg-black/5 p-2 sm:p-3">
+              <canvas ref={setStyleCanvas} className="mx-auto h-auto max-h-[calc(100vh-8rem)] w-auto max-w-full rounded-lg shadow-sm" aria-label="Живой предпросмотр оформления PNG" />
+            </div>
+          </div>
+
+          <Dialog open={presetDialog !== null} onOpenChange={(open) => { if (!open) setPresetDialog(null); }}>
+            <DialogContent className="max-w-sm gap-4 rounded-[22px] bg-[#f3f3ef] p-5">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold tracking-tight">{presetDialog === 'create' ? 'Новый пресет' : 'Обновить пресет?'}</DialogTitle>
+                {presetDialog === 'update' && <DialogDescription>Стили пресета «{activePreset?.name}» будут заменены текущими настройками.</DialogDescription>}
+              </DialogHeader>
+              {presetDialog === 'create' && <Input value={presetName} onChange={(event) => setPresetName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void savePreset(); }} placeholder="Название пресета" className="h-10 bg-white" aria-label="Название нового пресета" />}
+              {presetError && <p className="text-sm text-[#b5081c]">{presetError}</p>}
+              <DialogFooter className="-mx-5 -mb-5 px-5">
+                <Button variant="outline" onClick={() => setPresetDialog(null)} className="rounded-full">Отмена</Button>
+                <Button onClick={() => void savePreset()} disabled={savingPreset} className="rounded-full bg-[#171813] px-4 text-white hover:bg-black/80">{savingPreset ? 'Сохраняю' : presetDialog === 'create' ? 'Сохранить' : 'Обновить'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </DialogContent>
       </Dialog>
     </main>
