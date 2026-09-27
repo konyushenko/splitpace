@@ -331,7 +331,7 @@ export default function Home() {
     const placeBaseline = lastNameBaseline + 29;
     ctx.fillStyle = 'rgba(23,24,19,.58)';
     ctx.font = '700 19px Manrope, Arial';
-    ctx.fillText(`Место: ${runnerPlace}`, margin, placeBaseline);
+    ctx.fillText(`${runnerPlace} место`, margin, placeBaseline);
 
     const logoY = 54;
     const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
@@ -586,6 +586,20 @@ export default function Home() {
       <div className="mx-auto max-w-[1440px] px-5 py-8 lg:px-10 lg:py-10">
         <section className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
+            {editingPlace ? (
+              <div className="mb-3 flex max-w-[260px] items-center gap-2">
+                <span className="shrink-0 text-sm font-semibold text-black/50">Место</span>
+                <Input autoFocus inputMode="numeric" value={draftPlace} onChange={(event) => setDraftPlace(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePlace()} className="h-9 w-28 rounded-lg border-black/15 bg-white px-3 font-semibold shadow-none focus-visible:ring-2" aria-label="Место бегуна" />
+                <Button onClick={savePlace} size="icon" className="size-9 rounded-full bg-[#171813]" aria-label="Сохранить место"><Check className="size-4" /></Button>
+              </div>
+            ) : (
+              <div className="mb-3 flex items-center gap-2 text-base font-semibold text-black/55">
+                <span>Место: {runnerPlace}</span>
+                <button onClick={() => { setDraftPlace(runnerPlace); setEditingPlace(true); }} className="grid size-7 shrink-0 place-items-center rounded-full border border-black/15 text-black/45 transition hover:border-black hover:bg-white hover:text-black" aria-label="Редактировать место бегуна">
+                  <Pencil className="size-3" />
+                </button>
+              </div>
+            )}
             {editingName ? (
               <div className="flex max-w-[560px] items-center gap-2">
                 <Input autoFocus value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && saveName()} className="h-12 rounded-none border-0 border-b-2 border-[#171813] bg-transparent px-0 text-3xl font-bold shadow-none focus-visible:ring-0 sm:text-5xl" aria-label="Имя бегуна" />
@@ -596,20 +610,6 @@ export default function Home() {
                 <h1 className="min-w-0 max-w-[900px] break-words text-4xl font-bold tracking-[-0.045em] sm:text-6xl">{runnerName}</h1>
                 <button onClick={() => { setDraftName(runnerName); setEditingName(true); }} className="grid size-10 shrink-0 place-items-center rounded-full border border-black/15 text-black/55 transition hover:border-black hover:bg-white hover:text-black" aria-label="Редактировать имя">
                   <Pencil className="size-4" />
-                </button>
-              </div>
-            )}
-            {editingPlace ? (
-              <div className="mt-3 flex max-w-[260px] items-center gap-2">
-                <span className="shrink-0 text-sm font-semibold text-black/50">Место</span>
-                <Input autoFocus inputMode="numeric" value={draftPlace} onChange={(event) => setDraftPlace(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePlace()} className="h-9 w-28 rounded-lg border-black/15 bg-white px-3 font-semibold shadow-none focus-visible:ring-2" aria-label="Место бегуна" />
-                <Button onClick={savePlace} size="icon" className="size-9 rounded-full bg-[#171813]" aria-label="Сохранить место"><Check className="size-4" /></Button>
-              </div>
-            ) : (
-              <div className="mt-3 flex items-center gap-2 text-base font-semibold text-black/55">
-                <span>Место: {runnerPlace}</span>
-                <button onClick={() => { setDraftPlace(runnerPlace); setEditingPlace(true); }} className="grid size-7 shrink-0 place-items-center rounded-full border border-black/15 text-black/45 transition hover:border-black hover:bg-white hover:text-black" aria-label="Редактировать место бегуна">
-                  <Pencil className="size-3" />
                 </button>
               </div>
             )}
