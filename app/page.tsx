@@ -324,20 +324,22 @@ export default function Home() {
     } while (nameSize > 24);
     const nameLineHeight = Math.round(nameSize * 1.08);
     const firstNameBaseline = nameLines.length > 1 ? 96 : 112;
+    const placeBaseline = firstNameBaseline - 38;
+    ctx.fillStyle = 'rgba(23,24,19,.58)';
+    ctx.font = '700 19px Manrope, Arial';
+    ctx.fillText(`${runnerPlace} место`, margin, placeBaseline);
+    ctx.fillStyle = '#171813';
+    ctx.font = `800 ${nameSize}px Manrope, Arial`;
     nameLines.slice(0, 2).forEach((line, index) => {
       ctx.fillText(line, margin, firstNameBaseline + nameLineHeight * index);
     });
     const lastNameBaseline = firstNameBaseline + nameLineHeight * (Math.min(nameLines.length, 2) - 1);
-    const placeBaseline = lastNameBaseline + 29;
-    ctx.fillStyle = 'rgba(23,24,19,.58)';
-    ctx.font = '700 19px Manrope, Arial';
-    ctx.fillText(`${runnerPlace} место`, margin, placeBaseline);
 
     const logoY = 54;
     const logoHeight = logo ? metricWidth * (logo.naturalHeight / logo.naturalWidth) : 0;
     if (logo) ctx.drawImage(logo, width - margin - metricWidth, logoY, metricWidth, logoHeight);
 
-    const metricsY = Math.max(146, logoY + logoHeight + 46, placeBaseline + 32);
+    const metricsY = Math.max(146, logoY + logoHeight + 46, lastNameBaseline + 42);
     const metricsHeight = 112;
     const metrics = [
       ['Общее время', formatDuration(summary.totalSeconds)],
